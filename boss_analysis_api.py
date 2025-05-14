@@ -2,15 +2,22 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 
 app = Flask(__name__)
-CORS(app)  # enable if your front end is on a different domain
+CORS(app)  # allows cross‐origin requests from your WordPress site
+
+@app.route('/analyze_name', methods=['POST'])
+def analyze_name():
+    data = request.get_json()
+    # … your existing name‐analysis logic here …
+    return jsonify({
+        # … your existing name analysis response …
+    })
 
 @app.route('/boss_analyze', methods=['POST'])
 def boss_analyze():
     data = request.get_json()
-    # Log or inspect incoming payload
-    app.logger.info(f"Received payload: {data}")
+    app.logger.info(f"Boss payload: {data}")
 
-    # TODO: replace this with your real metric calculations & OpenAI call
+    # Dummy metrics & analysis—replace later with real logic
     dummy_metrics = [
         {
             "title": "Leadership Effectiveness",
@@ -25,9 +32,8 @@ def boss_analyze():
     ]
     dummy_analysis = (
         f"Here’s a quick analysis for {data.get('memberName')}:\n\n"
-        "- Leadership Effectiveness is solid, but could improve Execution.\n"
-        "- Team Engagement metrics show high Trust but room to boost Collaboration.\n\n"
-        "I recommend a targeted workshop on cross-team collaboration and a one-on-one coaching session focused on execution planning."
+        "- Strong Vision and Empathy; consider boosting Execution.\n"
+        "- Team shows high Trust but needs more Collaboration.\n"
     )
 
     return jsonify({
@@ -35,7 +41,6 @@ def boss_analyze():
         "analysis": dummy_analysis
     })
 
-
 if __name__ == '__main__':
-    # Run on port 5000 by default
+    # if you ever run this locally via `python name_analysis_api.py`
     app.run(host='0.0.0.0', port=5000, debug=True)
