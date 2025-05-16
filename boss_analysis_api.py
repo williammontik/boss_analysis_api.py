@@ -98,7 +98,7 @@ def boss_analyze():
 
         send_email(name, position, department, experience, sector, challenge, focus, email_addr, country, birthdate.date(), referrer)
 
-        # Creative chart approach for better visual consistency
+        # Chart Data and Visual Structure for Boss Section
         def build_metric(title, labels):
             return {
                 "title": title,
