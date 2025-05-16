@@ -1,14 +1,12 @@
 services:
   - type: web
-    name: name-analysis-api
+    name: boss-analysis-api
     env: python
     plan: free
 
-    # ── install your Python deps first ────────────────────────────────
     buildCommand: pip install -r requirements.txt
 
-    # ── then run your Flask app with Gunicorn ─────────────────────────
-    startCommand: gunicorn name_analysis_api:app
+    startCommand: gunicorn boss_analysis_api:app
 
     envVars:
       - key: OPENAI_API_KEY
