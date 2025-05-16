@@ -106,12 +106,31 @@ def boss_analyze():
                 "values": [random.randint(60, 95) for _ in labels]  # Values similar to children's chart
             }
 
-        # Define manager metrics (similar to children's chart format)
+        # Define manager metrics (consistent with Children's chart format)
         metrics = [
             build_metric("Leadership Traits", ["Initiative", "Accountability", "Empathy"]),
             build_metric("Team Dynamics", ["Teamwork", "Supportiveness", "Communication"]),
             build_metric("Execution Capacity", ["Punctuality", "Follow-Through", "Efficiency"])
         ]
+
+        # Dynamic Analysis Using GPT-3.5 for Personalized Text
+        def generate_dynamic_analysis(challenge, focus):
+            prompt = f"""
+            Generate a workplace performance analysis based on the following:
+            Challenge: {challenge}
+            Focus: {focus}
+            Provide a comparison with regional and global trends.
+            Give key findings, including strengths, gaps, and recommendations for growth.
+            """
+
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[{"role": "user", "content": prompt}]
+            )
+            return response.choices[0].message.content.strip()
+
+        # Generate dynamic analysis and key findings
+        analysis_text = generate_dynamic_analysis(challenge, focus)
 
         # Summary Report for Boss Section (Retained as requested)
         summary = f"""
@@ -134,9 +153,7 @@ Workplace Performance Report
         summary += f"""
 
 📌 Comparison with Regional & Global Trends:
-This segment shows relative strength in {focus.lower()} performance. 
-There may be challenges around {challenge.lower()}, with moderate gaps compared to regional and global averages.
-Consistency, training, and mentorship are recommended to bridge performance gaps.
+{analysis_text}
 
 🔍 Key Findings:
 1. Task execution reliability is above average across all benchmarks.
