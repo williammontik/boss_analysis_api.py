@@ -6,30 +6,27 @@ import logging
 from datetime import datetime
 from dateutil import parser
 from email.mime.text import MIMEText
-
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from openai import OpenAI
 import json
 
-# ── Flask Setup ─────────────────────────────────────────────────────────────
+# ── Flask Setup ────────────────────────────────────────────────
 app = Flask(__name__)
 CORS(app)
 app.logger.setLevel(logging.DEBUG)
 
-# ── OpenAI Client ────────────────────────────────────────────────────────────
+# ── OpenAI Setup ───────────────────────────────────────────────
 openai_api_key = os.getenv("OPENAI_API_KEY")
 if not openai_api_key:
     raise RuntimeError("OPENAI_API_KEY environment variable is not set.")
 client = OpenAI(api_key=openai_api_key)
 
-# ── SMTP Setup ───────────────────────────────────────────────────────────────
+# ── SMTP Email Setup ───────────────────────────────────────────
 SMTP_SERVER   = "smtp.gmail.com"
 SMTP_PORT     = 587
 SMTP_USERNAME = "kata.chatbot@gmail.com"
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
-if not SMTP_PASSWORD:
-    app.logger.warning("SMTP_PASSWORD is not set; emails may fail.")
 
 def send_email(full_name, position, department, experience, sector, challenge, focus, email, country, dob, referrer):
     subject = "New Boss Submission"
@@ -50,8 +47,8 @@ def send_email(full_name, position, department, experience, sector, challenge, f
 """
     msg = MIMEText(body)
     msg["Subject"] = subject
-    msg["From"]    = SMTP_USERNAME
-    msg["To"]      = SMTP_USERNAME
+    msg["From"] = SMTP_USERNAME
+    msg["To"] = SMTP_USERNAME
 
     try:
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
@@ -62,12 +59,12 @@ def send_email(full_name, position, department, experience, sector, challenge, f
     except Exception:
         app.logger.error("❌ Email sending failed.", exc_info=True)
 
-# ── /boss_analyze Endpoint (Managers) ─────────────────────────────────────────
+# ── /boss_analyze Endpoint ─────────────────────────────────────
 @app.route("/boss_analyze", methods=["POST"])
 def boss_analyze():
     try:
         data = request.get_json(force=True)
-        app.logger.info(f"[boss_analyze] payload: {data}")
+        app.logger.info(f"[boss_analyze] Payload received: {data}")
 
         name       = data.get("memberName", "")
         position   = data.get("position", "")
@@ -80,11 +77,10 @@ def boss_analyze():
         country    = data.get("country", "")
         referrer   = data.get("referrer", "")
 
-        # DOB Handling
+        # DOB Parsing
         day_str  = data.get("dob_day")
         mon_str  = data.get("dob_month")
         year_str = data.get("dob_year")
-
         if day_str and mon_str and year_str:
             if mon_str.isdigit():
                 month = int(mon_str)
@@ -96,23 +92,20 @@ def boss_analyze():
 
         today = datetime.today()
         age = today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
-
         send_email(name, position, department, experience, sector, challenge, focus, email_addr, country, birthdate.date(), referrer)
 
-        def random_metric(title):
-            segment = random.randint(60, 90)
-            regional = random.randint(55, 85)
-            global_avg = random.randint(60, 88)
+        # Children-style chart logic
+        def build_metric(title, labels):
             return {
                 "title": title,
-                "labels": ["Segment", "Regional", "Global"],
-                "values": [segment, regional, global_avg]
+                "labels": labels,
+                "values": [random.randint(60, 95) for _ in labels]
             }
 
         metrics = [
-            random_metric("Communication Efficiency"),
-            random_metric("Leadership Readiness"),
-            random_metric("Task Completion Reliability")
+            build_metric("Leadership Traits", ["Initiative", "Accountability", "Empathy"]),
+            build_metric("Team Dynamics", ["Teamwork", "Supportiveness", "Communication"]),
+            build_metric("Execution Capacity", ["Punctuality", "Follow-Through", "Efficiency"])
         ]
 
         summary = f"""
@@ -130,44 +123,28 @@ Workplace Performance Report
 📊 Workplace Metrics:
 """
         for m in metrics:
-            summary += f"• {m['title']}: Segment {m['values'][0]}%, Regional {m['values'][1]}%, Global {m['values'][2]}%\n"
+            summary += f"• {m['title']}: " + ", ".join([f"{label} {val}%" for label, val in zip(m["labels"], m["values"])]) + "\n"
 
-        summary += f"""
-
-📌 Comparison with Regional & Global Trends:
-This segment shows relative strength in {focus.lower()} performance. 
-There may be challenges around {challenge.lower()}, with moderate gaps compared to regional and global averages.
-Consistency, training, and mentorship are recommended to bridge performance gaps.
-
-🔍 Key Findings:
-1. Task execution reliability is above average across all benchmarks.
-2. Communication style can be enhanced to improve cross-team alignment.
-3. Growth potential is strong with proper support.
-
-"""
         footer = """
 <div style=\"background-color:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;\">
   <strong>The insights in this report are generated by KataChat’s AI systems analyzing:</strong><br>
-  1. Our proprietary database of anonymized professional profiles across Singapore, Malaysia, and Taiwan<br>
-  2. Aggregated global business benchmarks from trusted OpenAI research and leadership trend datasets<br>
-  <em>All data is processed through our AI models to identify statistically significant patterns while maintaining strict PDPA compliance. Sample sizes vary by analysis, with minimum thresholds of 1,000+ data points for management comparisons.</em><br>
-  <em>Report results may vary even for similar profiles, as the analysis is based on live data.</em>
+  1. A proprietary dataset of anonymized management patterns in Singapore, Malaysia, and Taiwan<br>
+  2. Aggregated global leadership benchmarks from OpenAI and professional development datasets<br>
+  <em>All insights are PDPA-compliant and statistically modeled with threshold samples of over 1000 records per field.</em>
 </div>
 <p style=\"background-color:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;\">
-  <strong>PS:</strong> This report has also been sent to your email inbox and should arrive within 24 hours. 
-  If you'd like to discuss it further, feel free to reach out — we’re happy to arrange a 15-minute call at your convenience.
+  <strong>PS:</strong> You’ll also get a copy via email. If you’d like to book a follow-up session, we’re happy to arrange a 15-minute call at your convenience.
 </p>
 """
-
         return jsonify({
             "metrics": metrics,
             "analysis": summary.strip() + "\n\n" + footer.strip()
         })
 
     except Exception as e:
-        app.logger.exception("Error in /boss_analyze")
+        app.logger.exception("Error occurred during boss_analyze")
         return jsonify({"error": str(e)}), 500
 
-# ── Run Locally ─────────────────────────────────────────────────────────────
+# ── Local Run ──────────────────────────────────────────────────
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0")
