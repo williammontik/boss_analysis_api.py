@@ -30,9 +30,12 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 if not SMTP_PASSWORD:
     app.logger.warning("SMTP_PASSWORD is not set; emails may fail.")
 
-def send_email(html_body: str):
+def send_email(html_body: str, subject: str):
+    """
+    Sends an HTML email containing the submission/report.
+    """
     msg = MIMEText(html_body, 'html')
-    msg["Subject"] = "New Boss Submission"
+    msg["Subject"] = subject
     msg["From"]    = SMTP_USERNAME
     msg["To"]      = SMTP_USERNAME
 
@@ -45,6 +48,7 @@ def send_email(html_body: str):
     except Exception:
         app.logger.error("❌ Email sending failed.", exc_info=True)
 
+
 # ── Chinese month name mapping ────────────────────────────────────────────────
 CHINESE_MONTHS = {
     "一月":1, "二月":2, "三月":3, "四月":4,
@@ -52,25 +56,105 @@ CHINESE_MONTHS = {
     "九月":9, "十月":10, "十一月":11, "十二月":12
 }
 
+
 # ── /analyze_name Endpoint (Children) ─────────────────────────────────────────
 @app.route("/analyze_name", methods=["POST"])
 def analyze_name():
     data = request.get_json(force=True)
     try:
-        # (existing children logic unchanged…)
-        # [... same as previously provided analyze_name block …]
-        # at end return jsonify({"metrics": metrics, "analysis": analysis})
-        ...
+        # 1) Collect fields
+        name         = data.get("name", "").strip()
+        chinese_name = data.get("chinese_name", "").strip()
+        gender       = data.get("gender", "").strip()
+        phone        = data.get("phone", "").strip()
+        email_addr   = data.get("email", "").strip()
+        country      = data.get("country", "").strip()
+        referrer     = data.get("referrer", "").strip()
+        lang         = data.get("lang", "en").lower()
+
+        # 2) Parse DOB
+        day_str   = data.get("dob_day")
+        mon_str   = data.get("dob_month")
+        year_str  = data.get("dob_year")
+        if day_str and mon_str and year_str:
+            if mon_str.isdigit():
+                month = int(mon_str)
+            elif mon_str in CHINESE_MONTHS:
+                month = CHINESE_MONTHS[mon_str]
+            else:
+                month = datetime.strptime(mon_str, "%B").month
+            birthdate = datetime(int(year_str), month, int(day_str))
+        else:
+            birthdate = parser.parse(data.get("dob", ""), dayfirst=True)
+
+        # compute age
+        today = datetime.today()
+        age = today.year - birthdate.year - (
+            (today.month, today.day) < (birthdate.month, birthdate.day)
+        )
+
+        # 3) Build prompt based on lang
+        if lang == "zh":
+            user_prompt = f"""
+请用简体中文生成一份学习模式统计报告，面向年龄 {age}、性别 {gender}、地区 {country} 的孩子。
+要求：
+1. 只给出百分比数据
+2. 在文本中用 Markdown 语法给出 3 个“柱状图”示例
+3. 对比区域/全球趋势
+4. 突出 3 个关键发现
+5. 不要个性化建议
+6. 学术风格
+"""
+        elif lang == "tw":
+            user_prompt = f"""
+請用繁體中文生成一份學習模式統計報告，面向年齡 {age}、性別 {gender}、地區 {country} 的孩子。
+要求：
+1. 只給出百分比數據
+2. 在文本中用 Markdown 语法给出 3 個「柱狀圖」示例
+3. 比較區域／全球趨勢
+4. 突出 3 個關鍵發現
+5. 不要個性化建議
+6. 學術風格
+"""
+        else:
+            user_prompt = f"""
+Generate a statistical report on learning patterns for children aged {age}, gender {gender}, in {country}.
+Requirements:
+1. Only factual percentages
+2. Include 3 markdown bar‐charts
+3. Compare regional/global
+4. Highlight 3 key findings
+5. No personalized advice
+6. Academic style
+"""
+
+        # 4) Call OpenAI with system instruction to output only JSON
+        messages = [
+            {"role": "system", "content": "You will output exactly one JSON object with keys \"metrics\" and \"analysis\" and nothing else."},
+            {"role": "user", "content": user_prompt}
+        ]
+        resp = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=messages
+        )
+        raw = resp.choices[0].message.content.strip()
+        result = json.loads(raw)  # now safe
+
+        # 5) (Optional) send email of submission + report
+        # send_email(...)
+
+        return jsonify(result)
+
     except Exception as e:
         app.logger.exception("Error in /analyze_name")
         return jsonify({"error": str(e)}), 500
+
 
 # ── /boss_analyze Endpoint (Managers) ─────────────────────────────────────────
 @app.route("/boss_analyze", methods=["POST"])
 def boss_analyze():
     try:
         data = request.get_json(force=True)
-        app.logger.info(f"[boss_analyze] payload: {data}")
 
         # 1) Extract fields
         name        = data.get("memberName", "").strip()
@@ -87,9 +171,9 @@ def boss_analyze():
         lang        = data.get("lang", "en").lower()
 
         # 2) Parse DOB
-        day_str  = data.get("dob_day")
-        mon_str  = data.get("dob_month")
-        year_str = data.get("dob_year")
+        day_str   = data.get("dob_day")
+        mon_str   = data.get("dob_month")
+        year_str  = data.get("dob_year")
         if day_str and mon_str and year_str:
             if mon_str.isdigit():
                 month = int(mon_str)
@@ -102,68 +186,54 @@ def boss_analyze():
             birthdate = parser.parse(data.get("dob", ""), dayfirst=True)
 
         today = datetime.today()
-        age = today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
+        age = today.year - birthdate.year - (
+            (today.month, today.day) < (birthdate.month, birthdate.day)
+        )
 
-        # 3) Generate metrics
-        def random_metric(title):
-            return {
-                "title": title,
-                "labels": ["Segment", "Regional", "Global"],
-                "values": [
-                    random.randint(60, 90),
-                    random.randint(55, 85),
-                    random.randint(60, 88)
-                ]
-            }
-        metrics = [
-            random_metric("Communication Efficiency"),
-            random_metric("Leadership Readiness"),
-            random_metric("Task Completion Reliability")
-        ]
-
-        # 4) Build prompt by language
+        # 3) Build prompt based on lang
         if lang == "zh":
-            prompt = f"""
+            user_prompt = f"""
 请以专业组织心理学家视角，用简体中文为名为\"{name}\"的员工生成详细绩效报告。
 要求：
 1. JSON 输出三项指标，每项包含 'Segment','Regional','Global'
 2. narrative 使用简体中文，150-200 字，突出优势、差距，并给出三项可行步骤
 """
         elif lang == "tw":
-            prompt = f"""
+            user_prompt = f"""
 請以專業組織心理學家視角，用繁體中文為名為\"{name}\"的員工生成詳細績效報告。
 要求：
 1. JSON 輸出三項指標，每項包含 'Segment','Regional','Global'
 2. narrative 使用繁體中文，150-200 字，突出優勢、差距，並給出三項可行步驟
 """
         else:
-            prompt = f"""
+            user_prompt = f"""
 You are an expert organizational psychologist. Generate a detailed performance report for \"{name}\".
 Requirements:
-1. Return JSON with three metrics comparing Segment/Regional/Global.
-2. Provide a 150-200 word narrative in English with strengths, gaps, and three actionable steps.
+1. Return a JSON object with three metrics comparing Segment/Regional/Global.
+2. Provide a 150-200 word narrative in English highlighting strengths, gaps, and three actionable steps.
 """
 
-        # 5) Call OpenAI
-        response = client.chat.completions.create(
+        # 4) Call OpenAI with system instruction to output only JSON
+        messages = [
+            {"role": "system", "content": "You will output exactly one JSON object with keys \"metrics\" and \"analysis\" and nothing else."},
+            {"role": "user", "content": user_prompt}
+        ]
+        resp = client.chat.completions.create(
             model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}]
+            messages=messages
         )
-        raw = response.choices[0].message.content.strip()
+        raw = resp.choices[0].message.content.strip()
+        report = json.loads(raw)  # now safe
 
-        # 6) Parse JSON directly
-        report = json.loads(raw)
+        # 5) (Optional) send email of submission + report
+        # send_email(...)
 
-        # 7) (Optional) send email if you want
-        # html_email = build_html_email(name, position, ...)
-        # send_email(html_email)
-
-        # 8) Return JSON
         return jsonify(report)
 
     except Exception as e:
         app.logger.exception("Error in /boss_analyze")
         return jsonify({"error": str(e)}), 500
+
 
 # ── Run Locally ─────────────────────────────────────────────────────────────
 if __name__ == "__main__":
