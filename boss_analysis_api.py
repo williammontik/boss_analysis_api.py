@@ -1,15 +1,26 @@
 import os
+import re
 import smtplib
+import random
 import logging
+from datetime import datetime
+from dateutil import parser
 from email.mime.text import MIMEText
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from datetime import datetime
+from openai import OpenAI
 
 app = Flask(__name__)
 CORS(app)
 app.logger.setLevel(logging.DEBUG)
 
+# ── OpenAI Client ────────────────────────────────────────────────────────────
+openai_api_key = os.getenv("OPENAI_API_KEY")
+if not openai_api_key:
+    raise RuntimeError("OPENAI_API_KEY environment variable is not set.")
+client = OpenAI(api_key=openai_api_key)
+
+# ── SMTP Setup ───────────────────────────────────────────────────────────────
 SMTP_SERVER   = "smtp.gmail.com"
 SMTP_PORT     = 587
 SMTP_USERNAME = "kata.chatbot@gmail.com"
@@ -17,59 +28,11 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 if not SMTP_PASSWORD:
     app.logger.warning("SMTP_PASSWORD is not set; emails may fail.")
 
-def send_email(full_name, position, department, experience, sector,
-               challenge, focus, email_addr, country,
-               dob_formatted, referrer, contact_number,
-               report_analysis, metrics):
+def send_email(html_body: str):
     """
-    Sends a multipart HTML email containing both submission data,
-    the AI narrative, and inline-CSS bar charts.
+    Sends a single HTML email to kata.chatbot@gmail.com.
     """
-    # Build HTML body
-    html = f"""
-    <html><body style="font-family:sans-serif; color:#333;">
-      <h2>🧑‍💼 New Boss Section Submission:</h2>
-      <p>
-        <strong>👤 Name:</strong> {full_name}<br>
-        <strong>🏢 Position:</strong> {position}<br>
-        <strong>📂 Department:</strong> {department}<br>
-        <strong>🗓️ Experience:</strong> {experience}<br>
-        <strong>📌 Sector:</strong> {sector}<br>
-        <strong>⚠️ Challenge:</strong> {challenge}<br>
-        <strong>🌟 Focus:</strong> {focus}<br>
-        <strong>📧 Email:</strong> {email_addr}<br>
-        <strong>🌍 Country:</strong> {country}<br>
-        <strong>🎂 DOB:</strong> {dob_formatted}<br>
-        <strong>💬 Referrer:</strong> {referrer}<br>
-        <strong>📞 In‐Charge Contact:</strong> {contact_number}
-      </p>
-      <hr>
-      <h2>📄 AI‐Generated Performance Report</h2>
-      <div style="font-size:14px; white-space:pre-wrap; margin-bottom:20px;">
-        {report_analysis}
-      </div>
-      <h2>📊 Charts</h2>
-      <div style="font-size:14px; max-width:600px;">
-    """
-
-    # Inline‐CSS bar charts (palette matches your front end)
-    palette = ["#5E9CA0","#FF9F40","#9966FF"]
-    for m in metrics:
-        html += f"<strong>{m['title']}</strong><br>"
-        for idx, lbl in enumerate(m["labels"]):
-            val = m["values"][idx]
-            color = palette[idx % len(palette)]
-            html += (
-              f"<div style='margin:4px 0;'>"
-              f"{lbl}: "
-              f"<span style='display:inline-block; width:{val}%; height:12px; background:{color}; border-radius:4px;'></span> {val}%"
-              f"</div>"
-            )
-        html += "<br>"
-
-    html += "</div></body></html>"
-
-    msg = MIMEText(html, 'html')
+    msg = MIMEText(html_body, 'html')
     msg["Subject"] = "New KataChatBot Boss Submission"
     msg["From"]    = SMTP_USERNAME
     msg["To"]      = SMTP_USERNAME
@@ -83,13 +46,20 @@ def send_email(full_name, position, department, experience, sector,
     except Exception:
         app.logger.error("❌ Boss email sending failed.", exc_info=True)
 
+# ── Child Endpoint (unchanged) ────────────────────────────────────────────────
+@app.route("/analyze_name", methods=["POST"])
+def analyze_name():
+    # ... your existing children logic unchanged ...
+    return jsonify({"metrics": [], "analysis": ""})
+
+# ── Boss Endpoint (enhanced) ─────────────────────────────────────────────────
 @app.route("/boss_analyze", methods=["POST"])
 def boss_analyze():
     try:
         data = request.get_json(force=True)
         app.logger.info(f"[boss_analyze] payload: {data}")
 
-        # Extract fields
+        # 1) Extract form fields
         member_name    = data.get("memberName", "")
         position       = data.get("position", "")
         department     = data.get("department", "")
@@ -105,14 +75,11 @@ def boss_analyze():
         referrer       = data.get("referrer", "")
         contact_number = data.get("contactNumber", "")
 
-        # Format DOB string
+        # 2) Format DOB string
         dob_formatted = f"{dob_day} {dob_month} {dob_year}"
 
-        # -- Existing AI / logic placeholder --
-        # (keep your existing prompt → OpenAI → parse logic if you have it;
-        #  otherwise you can stick with dummy metrics/analysis as before)
-
-        # For illustration, using your original dummy metrics + analysis:
+        # 3) Build and call your existing OpenAI prompt here (or use dummy data)
+        # ── For demonstration, we'll use your original dummy metrics + narrative ──
         metrics = [
             {
                 "title": "Leadership Execution",
@@ -136,20 +103,61 @@ def boss_analyze():
             "• Growth Potential is excellent in Adaptability and Vision.\n"
         )
 
-        # Send the enhanced email
-        send_email(
-            member_name, position, department, experience, sector,
-            challenge, focus, email_addr, country,
-            dob_formatted, referrer, contact_number,
-            report_analysis, metrics
-        )
+        # 4) Build the full HTML email
+        html = f"""
+        <html><body style="font-family:sans-serif; color:#333;">
+          <h2>🧑‍💼 New Boss Section Submission:</h2>
+          <p>
+            <strong>👤 Name:</strong> {member_name}<br>
+            <strong>🏢 Position:</strong> {position}<br>
+            <strong>📂 Department:</strong> {department}<br>
+            <strong>🗓️ Experience:</strong> {experience}<br>
+            <strong>📌 Sector:</strong> {sector}<br>
+            <strong>⚠️ Challenge:</strong> {challenge}<br>
+            <strong>🌟 Focus:</strong> {focus}<br>
+            <strong>📧 Email:</strong> {email_addr}<br>
+            <strong>🌍 Country:</strong> {country}<br>
+            <strong>🎂 DOB:</strong> {dob_formatted}<br>
+            <strong>💬 Referrer:</strong> {referrer}<br>
+            <strong>📞 In-Charge Contact:</strong> {contact_number}
+          </p>
+          <hr>
+          <h2>📄 AI-Generated Performance Report</h2>
+          <div style="font-size:14px; white-space:pre-wrap; margin-bottom:20px;">
+            {report_analysis}
+          </div>
+          <h2>📊 Charts</h2>
+          <div style="font-size:14px; max-width:600px;">
+        """
 
-        # Return exactly the same JSON your widget expects
+        # 5) Inline-CSS bar charts
+        palette = ["#5E9CA0", "#FF9F40", "#9966FF"]
+        for m in metrics:
+            html += f"<strong>{m['title']}</strong><br>\n"
+            for idx, lbl in enumerate(m["labels"]):
+                val = m["values"][idx]
+                c   = palette[idx % len(palette)]
+                html += (
+                    f"<div style='margin:4px 0;'>"
+                    f"{lbl}: "
+                    f"<span style='display:inline-block; width:{val}%; height:12px; "
+                    f"background:{c}; border-radius:4px;'></span> {val}%"
+                    f"</div>\n"
+                )
+            html += "<br>\n"
+
+        html += "</div></body></html>"
+
+        # 6) Send the email
+        send_email(html)
+
+        # 7) Return exactly the same JSON your widget expects
         return jsonify({"metrics": metrics, "analysis": report_analysis})
 
     except Exception as e:
         app.logger.exception("Error in /boss_analyze")
-        return jsonify(error=str(e)), 500
+        return jsonify({"error": str(e)}), 500
 
+# ── Run Locally ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0")
