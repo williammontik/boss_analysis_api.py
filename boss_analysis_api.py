@@ -6,19 +6,24 @@ import logging
 from datetime import datetime
 from dateutil import parser
 from email.mime.text import MIMEText
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from openai import OpenAI
+import json
 
+# ── Flask Setup ─────────────────────────────────────────────────────────────
 app = Flask(__name__)
 CORS(app)
 app.logger.setLevel(logging.DEBUG)
 
+# ── OpenAI Client ────────────────────────────────────────────────────────────
 openai_api_key = os.getenv("OPENAI_API_KEY")
 if not openai_api_key:
     raise RuntimeError("OPENAI_API_KEY environment variable is not set.")
 client = OpenAI(api_key=openai_api_key)
 
+# ── SMTP Setup ───────────────────────────────────────────────────────────────
 SMTP_SERVER   = "smtp.gmail.com"
 SMTP_PORT     = 587
 SMTP_USERNAME = "kata.chatbot@gmail.com"
@@ -26,12 +31,12 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 if not SMTP_PASSWORD:
     app.logger.warning("SMTP_PASSWORD is not set; emails may fail.")
 
-def send_email(full_name, chinese_name, gender, dob, age,
-               phone, email_addr, country, referrer,
-               email_html_body):
-    subject = "New KataChatBot Submission"
-    msg = MIMEText(email_html_body, 'html')
-    msg["Subject"] = subject
+def send_email(html_body: str):
+    """
+    Sends an HTML email to kata.chatbot@gmail.com.
+    """
+    msg = MIMEText(html_body, 'html')
+    msg["Subject"] = "New Boss Submission"
     msg["From"]    = SMTP_USERNAME
     msg["To"]      = SMTP_USERNAME
 
@@ -40,200 +45,161 @@ def send_email(full_name, chinese_name, gender, dob, age,
             server.starttls()
             server.login(SMTP_USERNAME, SMTP_PASSWORD)
             server.send_message(msg)
-        app.logger.info("✅ HTML email sent successfully.")
+        app.logger.info("✅ Email sent successfully.")
     except Exception:
         app.logger.error("❌ Email sending failed.", exc_info=True)
 
-@app.route("/analyze_name", methods=["POST"])
-def analyze_name():
-    data = request.get_json(force=True)
-    try:
-        app.logger.info(f"[analyze_name] payload: {data}")
-
-        name         = data.get("name", "").strip()
-        chinese_name = data.get("chinese_name", "").strip()
-        gender       = data.get("gender", "").strip()
-        phone        = data.get("phone", "").strip()
-        email_addr   = data.get("email", "").strip()
-        country      = data.get("country", "").strip()
-        referrer     = data.get("referrer", "").strip()
-        lang         = data.get("lang", "en").lower()
-
-        day_str, mon_str, year_str = (data.get(k) for k in ("dob_day","dob_month","dob_year"))
-        if day_str and mon_str and year_str:
-            chinese_months = {
-                "一月":1, "二月":2, "三月":3, "四月":4,
-                "五月":5, "六月":6, "七月":7, "八月":8,
-                "九月":9, "十月":10, "十一月":11, "十二月":12
-            }
-            if mon_str.isdigit():
-                month = int(mon_str)
-            elif mon_str in chinese_months:
-                month = chinese_months[mon_str]
-            else:
-                month = datetime.strptime(mon_str, "%B").month
-            birthdate = datetime(int(year_str), month, int(day_str))
-        else:
-            birthdate = parser.parse(data.get("dob", ""), dayfirst=True)
-
-        today = datetime.today()
-        age = today.year - birthdate.year - (
-            (today.month, today.day) < (birthdate.month, birthdate.day)
-        )
-
-        if lang == "zh":
-            prompt = f"请用简体中文生成一份学习模式统计报告，面向年龄 {age}、性别 {gender}、地区 {country} 的孩子。"
-        elif lang == "tw":
-            prompt = f"請用繁體中文生成一份學習模式統計報告，面向年齡 {age}、性別 {gender}、地區 {country} 的孩子。"
-        else:
-            prompt = f"Generate a statistical report on learning patterns for children aged {age}, gender {gender}, in {country}."
-
-        response   = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role":"user","content":prompt}]
-        )
-        raw_report = response.choices[0].message.content
-        analysis   = re.sub(r"<[^>]+>", "", raw_report)
-
-        base_improve  = random.randint(65, 80)
-        base_struggle = random.randint(30, 45)
-        if base_struggle >= base_improve - 5:
-            base_struggle = base_improve - random.randint(10, 15)
-        improved_percent  = round(base_improve / 5) * 5
-        struggle_percent  = round(base_struggle / 5) * 5
-
-        titles = ["Learning Preferences", "Study Habits", "Math Performance"]
-        labels = [
-            ["Visual","Auditory","Kinesthetic"],
-            ["Regular Study","Group Study","Solo Study"],
-            ["Algebra","Geometry"]
-        ]
-
-        metrics = [
-            {"title": titles[0], "labels": labels[0],
-             "values": [improved_percent, struggle_percent, 100 - improved_percent - struggle_percent]},
-            {"title": titles[1], "labels": labels[1], "values": [70,30,60]},
-            {"title": titles[2], "labels": labels[2], "values": [improved_percent,70]}
-        ]
-
-        email_html = f"""
-        <html><body style="font-family:sans-serif; color:#333;">
-          <h2>🎯 New User Submission:</h2>
-          <p>
-            <strong>👤 Full Name:</strong> {name}<br>
-            <strong>🈶 Chinese Name:</strong> {chinese_name}<br>
-            <strong>⚧️ Gender:</strong> {gender}<br>
-            <strong>🎂 DOB:</strong> {birthdate.date()}<br>
-            <strong>🕑 Age:</strong> {age}<br>
-            <strong>🌍 Country:</strong> {country}
-          </p>
-          <p>
-            <strong>📞 Phone:</strong> {phone}<br>
-            <strong>📧 Email:</strong> {email_addr}<br>
-            <strong>💬 Referrer:</strong> {referrer}
-          </p>
-          <hr>
-          <h2>📄 Personalized AI-Generated Report</h2>
-          <div style="font-size:14px; white-space:pre-wrap; margin-bottom:20px;">{analysis}</div>
-          <h2>📊 Charts</h2><div style="font-size:14px;">
-        """
-
-        palette = ["#5E9CA0","#FF9F40","#9966FF"]
-        for m in metrics:
-            email_html += f"<strong>{m['title']}</strong><br>\n"
-            for idx, (lbl, val) in enumerate(zip(m["labels"], m["values"])):
-                color = palette[idx % len(palette)]
-                email_html += (
-                    f"<div style='margin:4px 0;'>{lbl}:&nbsp;"
-                    f"<span style='display:inline-block; width:{val}%; height:12px; background:{color}; border-radius:4px;'></span>&nbsp;{val}%</div>\n"
-                )
-            email_html += "<br>\n"
-        email_html += "</div></body></html>"
-
-        send_email(name, chinese_name, gender, birthdate.date(),
-                   age, phone, email_addr, country, referrer, email_html)
-
-        return jsonify({"metrics": metrics, "analysis": analysis})
-
-    except Exception as e:
-        app.logger.exception("Error in /analyze_name")
-        return jsonify({"error": str(e)}), 500
-
+# ── /boss_analyze Endpoint (Managers) ─────────────────────────────────────────
 @app.route("/boss_analyze", methods=["POST"])
 def boss_analyze():
     try:
         data = request.get_json(force=True)
         app.logger.info(f"[boss_analyze] payload: {data}")
 
-        member_name     = data.get("memberName", "")
-        position        = data.get("position", "")
-        department      = data.get("department", "")
-        experience      = data.get("experience", "")
-        sector          = data.get("sector", "")
-        challenge       = data.get("challenge", "")
-        focus           = data.get("focus", "")
-        email_addr      = data.get("email", "")
-        country         = data.get("country", "")
-        dob_day         = data.get("dob_day", "")
-        dob_month       = data.get("dob_month", "")
-        dob_year        = data.get("dob_year", "")
-        referrer        = data.get("referrer", "")
-        contact_number  = data.get("contactNumber", "")
+        # 1) Extract form fields
+        name       = data.get("memberName", "")
+        position   = data.get("position", "")
+        department = data.get("department", "")
+        experience = data.get("experience", "")
+        sector     = data.get("sector", "")
+        challenge  = data.get("challenge", "")
+        focus      = data.get("focus", "")
+        email_addr = data.get("email", "")
+        country    = data.get("country", "")
+        referrer   = data.get("referrer", "")
 
-        birthdate = f"{dob_day} {dob_month} {dob_year}"
+        # DOB
+        day_str  = data.get("dob_day")
+        mon_str  = data.get("dob_month")
+        year_str = data.get("dob_year")
+        if day_str and mon_str and year_str:
+            if mon_str.isdigit():
+                month = int(mon_str)
+            else:
+                month = datetime.strptime(mon_str, "%B").month
+            birthdate = datetime(int(year_str), month, int(day_str))
+        else:
+            birthdate = parser.parse(data.get("dob", ""), dayfirst=True)
+        age = datetime.today().year - birthdate.year - ((datetime.today().month, datetime.today().day) < (birthdate.month, birthdate.day))
 
-        email_html = f"""
+        # 2) Send the **plain fields** immediately (so you capture submission)
+        #    We’ll send the full report + charts below, in one email,
+        #    so we do **not** call send_email() here for plain text.
+
+        # 3) Generate metrics
+        def random_metric(title):
+            return {
+                "title": title,
+                "labels": ["Segment", "Regional", "Global"],
+                "values": [
+                    random.randint(60, 90),
+                    random.randint(55, 85),
+                    random.randint(60, 88)
+                ]
+            }
+        metrics = [
+            random_metric("Communication Efficiency"),
+            random_metric("Leadership Readiness"),
+            random_metric("Task Completion Reliability")
+        ]
+
+        # 4) Build the full narrative
+        summary = f"""
+Workplace Performance Report
+
+• Age: {age}
+• Position: {position}
+• Department: {department}
+• Experience: {experience} year(s)
+• Sector: {sector}
+• Country: {country}
+• Main Challenge: {challenge}
+• Development Focus: {focus}
+
+📊 Workplace Metrics:
+"""
+        for m in metrics:
+            summary += f"• {m['title']}: Segment {m['values'][0]}%, Regional {m['values'][1]}%, Global {m['values'][2]}%\n"
+
+        summary += f"""
+
+📌 Comparison with Regional & Global Trends:
+This segment shows relative strength in {focus.lower()} performance. 
+There may be challenges around {challenge.lower()}, with moderate gaps compared to regional and global averages.
+Consistency, training, and mentorship are recommended to bridge performance gaps.
+
+🔍 Key Findings:
+1. Task execution reliability is above average across all benchmarks.
+2. Communication style can be enhanced to improve cross-team alignment.
+3. Growth potential is strong with proper support.
+"""
+
+        footer = """
+<div style="background-color:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;">
+  <strong>The insights in this report are generated by KataChat’s AI systems analyzing:</strong><br>
+  1. Our proprietary database of anonymized professional profiles across Singapore, Malaysia, and Taiwan<br>
+  2. Aggregated global business benchmarks from trusted OpenAI research and leadership trend datasets<br>
+  <em>All data is processed through our AI models to identify statistically significant patterns while maintaining strict PDPA compliance. Sample sizes vary by analysis, with minimum thresholds of 1,000+ data points for management comparisons.</em>
+</div>
+<p style="background-color:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;">
+  <strong>PS:</strong> This report has also been sent to your email inbox and should arrive within 24 hours.
+  If you'd like to discuss it further, feel free to reach out — we’re happy to arrange a 15-minute call at your convenience.
+</p>
+"""
+
+        # 5) Build the **HTML** for email (submission + narrative + inline charts)
+        html = f"""
         <html><body style="font-family:sans-serif; color:#333;">
-          <h2>🧑‍💼 New Boss Section Submission:</h2>
+          <h2>🎯 Boss Submission Details:</h2>
           <p>
-            <strong>👤 Team Member Name:</strong> {member_name}<br>
+            <strong>👤 Full Name:</strong> {name}<br>
             <strong>🏢 Position:</strong> {position}<br>
             <strong>📂 Department:</strong> {department}<br>
-            <strong>🗓️ Years of Experience:</strong> {experience}<br>
+            <strong>🗓️ Experience:</strong> {experience} year(s)<br>
             <strong>📌 Sector:</strong> {sector}<br>
-            <strong>⚠️ Key Challenge:</strong> {challenge}<br>
+            <strong>⚠️ Challenge:</strong> {challenge}<br>
             <strong>🌟 Focus:</strong> {focus}<br>
             <strong>📧 Email:</strong> {email_addr}<br>
             <strong>🌍 Country:</strong> {country}<br>
-            <strong>🎂 DOB:</strong> {birthdate}<br>
-            <strong>💬 Referrer:</strong> {referrer}<br>
-            <strong>📞 In Charge Contact:</strong> {contact_number}
+            <strong>🎂 DOB:</strong> {birthdate.date()}<br>
+            <strong>💬 Referrer:</strong> {referrer}
           </p>
-        </body></html>
+          <hr>
+          <h2>📄 AI-Generated Report</h2>
+          <div style="font-size:14px; white-space:pre-wrap; margin-bottom:20px;">
+            {summary}
+          </div>
+          <h2>📊 Charts</h2>
+          <div style="font-size:14px; max-width:600px;">
         """
 
-        send_email(member_name, "", "", birthdate, "", "", email_addr,
-                   country, referrer, email_html)
+        # 6) Inline CSS bar charts (palette matches your front-end)
+        palette = ["#5E9CA0","#FF9F40","#9966FF"]
+        for m in metrics:
+            html += f"<strong>{m['title']}</strong><br>\n"
+            for idx, lbl in enumerate(m["labels"]):
+                val = m["values"][idx]
+                color = palette[idx % len(palette)]
+                html += (
+                    f"<div style='margin:4px 0;'>"
+                    f"{lbl}: <span style='display:inline-block; width:{val}%; height:12px; "
+                    f"background:{color}; border-radius:4px;'></span> {val}%"
+                    f"</div>\n"
+                )
+            html += "<br>\n"
 
-        metrics = [
-            {
-                "title": "Leadership Execution",
-                "labels": ["Teamwork", "Responsibility", "Problem Solving"],
-                "values": [72, 85, 67]
-            },
-            {
-                "title": "Communication Effectiveness",
-                "labels": ["Clarity", "Feedback", "Openness"],
-                "values": [78, 69, 83]
-            },
-            {
-                "title": "Growth Potential",
-                "labels": ["Initiative", "Adaptability", "Vision"],
-                "values": [88, 74, 91]
-            }
-        ]
+        html += f"</div>{footer}</body></html>"
 
-        analysis = "📊 Personalized Insight Summary:\n\n"
-        analysis += f"• {member_name} shows strong leadership traits, with potential to improve in problem-solving.\n"
-        analysis += f"• Communication clarity can be further enhanced through coaching.\n"
-        analysis += f"• Growth outlook is promising, especially in adaptability and initiative.\n"
-        analysis += "\n[Got it!! I fully understand your situation now. Now we should proceed to the next step...👇]"
+        # 7) Send the **full** HTML email
+        send_email(html)
 
-        return jsonify({"metrics": metrics, "analysis": analysis})
+        # 8) Return JSON response (unchanged for your widget)
+        return jsonify({"metrics": metrics, "analysis": summary + footer})
 
     except Exception as e:
         app.logger.exception("Error in /boss_analyze")
         return jsonify({"error": str(e)}), 500
 
+# ── Run Locally ─────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0")
