@@ -1,6 +1,3 @@
-18 May 4pm .py backup
-
-
 import os
 import re
 import smtplib
