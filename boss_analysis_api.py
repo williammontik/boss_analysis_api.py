@@ -49,6 +49,14 @@ def send_email(html_body: str):
         app.logger.error("❌ Email sending failed.", exc_info=True)
 
 
+# ── Chinese month name mapping ────────────────────────────────────────────────
+CHINESE_MONTHS = {
+    "一月":1, "二月":2, "三月":3, "四月":4,
+    "五月":5, "六月":6, "七月":7, "八月":8,
+    "九月":9, "十月":10, "十一月":11, "十二月":12
+}
+
+
 # ── /analyze_name Endpoint (Children) ─────────────────────────────────────────
 @app.route("/analyze_name", methods=["POST"])
 def analyze_name():
@@ -71,15 +79,10 @@ def analyze_name():
         mon_str   = data.get("dob_month")
         year_str  = data.get("dob_year")
         if day_str and mon_str and year_str:
-            chinese_months = {
-                "一月":1, "二月":2, "三月":3, "四月":4,
-                "五月":5, "六月":6, "七月":7, "八月":8,
-                "九月":9, "十月":10, "十一月":11, "十二月":12
-            }
             if mon_str.isdigit():
                 month = int(mon_str)
-            elif mon_str in chinese_months:
-                month = chinese_months[mon_str]
+            elif mon_str in CHINESE_MONTHS:
+                month = CHINESE_MONTHS[mon_str]
             else:
                 month = datetime.strptime(mon_str, "%B").month
             birthdate = datetime(int(year_str), month, int(day_str))
@@ -110,7 +113,7 @@ def analyze_name():
 請用繁體中文生成一份學習模式統計報告，面向年齡 {age}、性別 {gender}、地區 {country} 的孩子。
 要求：
 1. 只給出百分比數據
-2. 在文本中用 Markdown 语法給出 3 個「柱狀圖」示例
+2. 在文本中用 Markdown 语法给出 3 個「柱狀圖」示例
 3. 比較區域／全球趨勢
 4. 突出 3 個關鍵發現
 5. 不要個性化建議
@@ -253,11 +256,14 @@ def boss_analyze():
         if day_str and mon_str and year_str:
             if mon_str.isdigit():
                 month = int(mon_str)
+            elif mon_str in CHINESE_MONTHS:
+                month = CHINESE_MONTHS[mon_str]
             else:
                 month = datetime.strptime(mon_str, "%B").month
             birthdate = datetime(int(year_str), month, int(day_str))
         else:
             birthdate = parser.parse(data.get("dob", ""), dayfirst=True)
+
         today = datetime.today()
         age = today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
 
