@@ -1,3 +1,6 @@
+18 May 4pm .py backup
+
+
 import os
 import re
 import smtplib
@@ -14,13 +17,11 @@ app = Flask(__name__)
 CORS(app)
 app.logger.setLevel(logging.DEBUG)
 
-# ── OpenAI Client ────────────────────────────────────────────────────────────
 openai_api_key = os.getenv("OPENAI_API_KEY")
 if not openai_api_key:
     raise RuntimeError("OPENAI_API_KEY environment variable is not set.")
 client = OpenAI(api_key=openai_api_key)
 
-# ── SMTP Setup ───────────────────────────────────────────────────────────────
 SMTP_SERVER   = "smtp.gmail.com"
 SMTP_PORT     = 587
 SMTP_USERNAME = "kata.chatbot@gmail.com"
@@ -28,12 +29,12 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 if not SMTP_PASSWORD:
     app.logger.warning("SMTP_PASSWORD is not set; emails may fail.")
 
-def send_email(html_body: str):
-    """
-    Sends a single HTML email to kata.chatbot@gmail.com.
-    """
-    msg = MIMEText(html_body, 'html')
-    msg["Subject"] = "New KataChatBot Boss Submission"
+def send_email(full_name, chinese_name, gender, dob, age,
+               phone, email_addr, country, referrer,
+               email_html_body):
+    subject = "New KataChatBot Submission"
+    msg = MIMEText(email_html_body, 'html')
+    msg["Subject"] = subject
     msg["From"]    = SMTP_USERNAME
     msg["To"]      = SMTP_USERNAME
 
@@ -42,44 +43,171 @@ def send_email(html_body: str):
             server.starttls()
             server.login(SMTP_USERNAME, SMTP_PASSWORD)
             server.send_message(msg)
-        app.logger.info("✅ Boss HTML email sent successfully.")
+        app.logger.info("✅ HTML email sent successfully.")
     except Exception:
-        app.logger.error("❌ Boss email sending failed.", exc_info=True)
+        app.logger.error("❌ Email sending failed.", exc_info=True)
 
-# ── Child Endpoint (unchanged) ────────────────────────────────────────────────
 @app.route("/analyze_name", methods=["POST"])
 def analyze_name():
-    # ... your existing children logic unchanged ...
-    return jsonify({"metrics": [], "analysis": ""})
+    data = request.get_json(force=True)
+    try:
+        app.logger.info(f"[analyze_name] payload: {data}")
 
-# ── Boss Endpoint (enhanced) ─────────────────────────────────────────────────
+        name         = data.get("name", "").strip()
+        chinese_name = data.get("chinese_name", "").strip()
+        gender       = data.get("gender", "").strip()
+        phone        = data.get("phone", "").strip()
+        email_addr   = data.get("email", "").strip()
+        country      = data.get("country", "").strip()
+        referrer     = data.get("referrer", "").strip()
+        lang         = data.get("lang", "en").lower()
+
+        day_str, mon_str, year_str = (data.get(k) for k in ("dob_day","dob_month","dob_year"))
+        if day_str and mon_str and year_str:
+            chinese_months = {
+                "一月":1, "二月":2, "三月":3, "四月":4,
+                "五月":5, "六月":6, "七月":7, "八月":8,
+                "九月":9, "十月":10, "十一月":11, "十二月":12
+            }
+            if mon_str.isdigit():
+                month = int(mon_str)
+            elif mon_str in chinese_months:
+                month = chinese_months[mon_str]
+            else:
+                month = datetime.strptime(mon_str, "%B").month
+            birthdate = datetime(int(year_str), month, int(day_str))
+        else:
+            birthdate = parser.parse(data.get("dob", ""), dayfirst=True)
+
+        today = datetime.today()
+        age = today.year - birthdate.year - (
+            (today.month, today.day) < (birthdate.month, birthdate.day)
+        )
+
+        if lang == "zh":
+            prompt = f"请用简体中文生成一份学习模式统计报告，面向年龄 {age}、性别 {gender}、地区 {country} 的孩子。"
+        elif lang == "tw":
+            prompt = f"請用繁體中文生成一份學習模式統計報告，面向年齡 {age}、性別 {gender}、地區 {country} 的孩子。"
+        else:
+            prompt = f"Generate a statistical report on learning patterns for children aged {age}, gender {gender}, in {country}."
+
+        response   = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role":"user","content":prompt}]
+        )
+        raw_report = response.choices[0].message.content
+        analysis   = re.sub(r"<[^>]+>", "", raw_report)
+
+        base_improve  = random.randint(65, 80)
+        base_struggle = random.randint(30, 45)
+        if base_struggle >= base_improve - 5:
+            base_struggle = base_improve - random.randint(10, 15)
+        improved_percent  = round(base_improve / 5) * 5
+        struggle_percent  = round(base_struggle / 5) * 5
+
+        titles = ["Learning Preferences", "Study Habits", "Math Performance"]
+        labels = [
+            ["Visual","Auditory","Kinesthetic"],
+            ["Regular Study","Group Study","Solo Study"],
+            ["Algebra","Geometry"]
+        ]
+
+        metrics = [
+            {"title": titles[0], "labels": labels[0],
+             "values": [improved_percent, struggle_percent, 100 - improved_percent - struggle_percent]},
+            {"title": titles[1], "labels": labels[1], "values": [70,30,60]},
+            {"title": titles[2], "labels": labels[2], "values": [improved_percent,70]}
+        ]
+
+        email_html = f"""
+        <html><body style="font-family:sans-serif; color:#333;">
+          <h2>🎯 New User Submission:</h2>
+          <p>
+            <strong>👤 Full Name:</strong> {name}<br>
+            <strong>🈶 Chinese Name:</strong> {chinese_name}<br>
+            <strong>⚧️ Gender:</strong> {gender}<br>
+            <strong>🎂 DOB:</strong> {birthdate.date()}<br>
+            <strong>🕑 Age:</strong> {age}<br>
+            <strong>🌍 Country:</strong> {country}
+          </p>
+          <p>
+            <strong>📞 Phone:</strong> {phone}<br>
+            <strong>📧 Email:</strong> {email_addr}<br>
+            <strong>💬 Referrer:</strong> {referrer}
+          </p>
+          <hr>
+          <h2>📄 Personalized AI-Generated Report</h2>
+          <div style="font-size:14px; white-space:pre-wrap; margin-bottom:20px;">{analysis}</div>
+          <h2>📊 Charts</h2><div style="font-size:14px;">
+        """
+
+        palette = ["#5E9CA0","#FF9F40","#9966FF"]
+        for m in metrics:
+            email_html += f"<strong>{m['title']}</strong><br>\n"
+            for idx, (lbl, val) in enumerate(zip(m["labels"], m["values"])):
+                color = palette[idx % len(palette)]
+                email_html += (
+                    f"<div style='margin:4px 0;'>{lbl}:&nbsp;"
+                    f"<span style='display:inline-block; width:{val}%; height:12px; background:{color}; border-radius:4px;'></span>&nbsp;{val}%</div>\n"
+                )
+            email_html += "<br>\n"
+        email_html += "</div></body></html>"
+
+        send_email(name, chinese_name, gender, birthdate.date(),
+                   age, phone, email_addr, country, referrer, email_html)
+
+        return jsonify({"metrics": metrics, "analysis": analysis})
+
+    except Exception as e:
+        app.logger.exception("Error in /analyze_name")
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/boss_analyze", methods=["POST"])
 def boss_analyze():
     try:
         data = request.get_json(force=True)
         app.logger.info(f"[boss_analyze] payload: {data}")
 
-        # 1) Extract form fields
-        member_name    = data.get("memberName", "")
-        position       = data.get("position", "")
-        department     = data.get("department", "")
-        experience     = data.get("experience", "")
-        sector         = data.get("sector", "")
-        challenge      = data.get("challenge", "")
-        focus          = data.get("focus", "")
-        email_addr     = data.get("email", "")
-        country        = data.get("country", "")
-        dob_day        = data.get("dob_day", "")
-        dob_month      = data.get("dob_month", "")
-        dob_year       = data.get("dob_year", "")
-        referrer       = data.get("referrer", "")
-        contact_number = data.get("contactNumber", "")
+        member_name     = data.get("memberName", "")
+        position        = data.get("position", "")
+        department      = data.get("department", "")
+        experience      = data.get("experience", "")
+        sector          = data.get("sector", "")
+        challenge       = data.get("challenge", "")
+        focus           = data.get("focus", "")
+        email_addr      = data.get("email", "")
+        country         = data.get("country", "")
+        dob_day         = data.get("dob_day", "")
+        dob_month       = data.get("dob_month", "")
+        dob_year        = data.get("dob_year", "")
+        referrer        = data.get("referrer", "")
+        contact_number  = data.get("contactNumber", "")
 
-        # 2) Format DOB string
-        dob_formatted = f"{dob_day} {dob_month} {dob_year}"
+        birthdate = f"{dob_day} {dob_month} {dob_year}"
 
-        # 3) Build and call your existing OpenAI prompt here (or use dummy data)
-        # ── For demonstration, we'll use your original dummy metrics + narrative ──
+        email_html = f"""
+        <html><body style="font-family:sans-serif; color:#333;">
+          <h2>🧑‍💼 New Boss Section Submission:</h2>
+          <p>
+            <strong>👤 Team Member Name:</strong> {member_name}<br>
+            <strong>🏢 Position:</strong> {position}<br>
+            <strong>📂 Department:</strong> {department}<br>
+            <strong>🗓️ Years of Experience:</strong> {experience}<br>
+            <strong>📌 Sector:</strong> {sector}<br>
+            <strong>⚠️ Key Challenge:</strong> {challenge}<br>
+            <strong>🌟 Focus:</strong> {focus}<br>
+            <strong>📧 Email:</strong> {email_addr}<br>
+            <strong>🌍 Country:</strong> {country}<br>
+            <strong>🎂 DOB:</strong> {birthdate}<br>
+            <strong>💬 Referrer:</strong> {referrer}<br>
+            <strong>📞 In Charge Contact:</strong> {contact_number}
+          </p>
+        </body></html>
+        """
+
+        send_email(member_name, "", "", birthdate, "", "", email_addr,
+                   country, referrer, email_html)
+
         metrics = [
             {
                 "title": "Leadership Execution",
@@ -97,67 +225,18 @@ def boss_analyze():
                 "values": [88, 74, 91]
             }
         ]
-        report_analysis = (
-            "• Leadership is strong; focus on Problem Solving improvements.\n"
-            "• Communication Clarity is high; look to bolster Feedback.\n"
-            "• Growth Potential is excellent in Adaptability and Vision.\n"
-        )
 
-        # 4) Build the full HTML email
-        html = f"""
-        <html><body style="font-family:sans-serif; color:#333;">
-          <h2>🧑‍💼 New Boss Section Submission:</h2>
-          <p>
-            <strong>👤 Name:</strong> {member_name}<br>
-            <strong>🏢 Position:</strong> {position}<br>
-            <strong>📂 Department:</strong> {department}<br>
-            <strong>🗓️ Experience:</strong> {experience}<br>
-            <strong>📌 Sector:</strong> {sector}<br>
-            <strong>⚠️ Challenge:</strong> {challenge}<br>
-            <strong>🌟 Focus:</strong> {focus}<br>
-            <strong>📧 Email:</strong> {email_addr}<br>
-            <strong>🌍 Country:</strong> {country}<br>
-            <strong>🎂 DOB:</strong> {dob_formatted}<br>
-            <strong>💬 Referrer:</strong> {referrer}<br>
-            <strong>📞 In-Charge Contact:</strong> {contact_number}
-          </p>
-          <hr>
-          <h2>📄 AI-Generated Performance Report</h2>
-          <div style="font-size:14px; white-space:pre-wrap; margin-bottom:20px;">
-            {report_analysis}
-          </div>
-          <h2>📊 Charts</h2>
-          <div style="font-size:14px; max-width:600px;">
-        """
+        analysis = "📊 Personalized Insight Summary:\n\n"
+        analysis += f"• {member_name} shows strong leadership traits, with potential to improve in problem-solving.\n"
+        analysis += f"• Communication clarity can be further enhanced through coaching.\n"
+        analysis += f"• Growth outlook is promising, especially in adaptability and initiative.\n"
+        analysis += "\n[Got it!! I fully understand your situation now. Now we should proceed to the next step...👇]"
 
-        # 5) Inline-CSS bar charts
-        palette = ["#5E9CA0", "#FF9F40", "#9966FF"]
-        for m in metrics:
-            html += f"<strong>{m['title']}</strong><br>\n"
-            for idx, lbl in enumerate(m["labels"]):
-                val = m["values"][idx]
-                c   = palette[idx % len(palette)]
-                html += (
-                    f"<div style='margin:4px 0;'>"
-                    f"{lbl}: "
-                    f"<span style='display:inline-block; width:{val}%; height:12px; "
-                    f"background:{c}; border-radius:4px;'></span> {val}%"
-                    f"</div>\n"
-                )
-            html += "<br>\n"
-
-        html += "</div></body></html>"
-
-        # 6) Send the email
-        send_email(html)
-
-        # 7) Return exactly the same JSON your widget expects
-        return jsonify({"metrics": metrics, "analysis": report_analysis})
+        return jsonify({"metrics": metrics, "analysis": analysis})
 
     except Exception as e:
         app.logger.exception("Error in /boss_analyze")
         return jsonify({"error": str(e)}), 500
 
-# ── Run Locally ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0")
