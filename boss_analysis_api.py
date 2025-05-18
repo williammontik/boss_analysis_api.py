@@ -9,20 +9,16 @@ from email.mime.text import MIMEText
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from openai import OpenAI
-import json
 
-# ── Flask Setup ─────────────────────────────────────────────
 app = Flask(__name__)
 CORS(app)
 app.logger.setLevel(logging.DEBUG)
 
-# ── OpenAI Client ────────────────────────────────────────────
 openai_api_key = os.getenv("OPENAI_API_KEY")
 if not openai_api_key:
     raise RuntimeError("OPENAI_API_KEY environment variable is not set.")
 client = OpenAI(api_key=openai_api_key)
 
-# ── SMTP Setup ───────────────────────────────────────────────
 SMTP_SERVER   = "smtp.gmail.com"
 SMTP_PORT     = 587
 SMTP_USERNAME = "kata.chatbot@gmail.com"
@@ -54,7 +50,6 @@ def analyze_name():
     try:
         app.logger.info(f"[analyze_name] payload: {data}")
 
-        # Collect fields
         name         = data.get("name", "").strip()
         chinese_name = data.get("chinese_name", "").strip()
         gender       = data.get("gender", "").strip()
@@ -64,7 +59,6 @@ def analyze_name():
         referrer     = data.get("referrer", "").strip()
         lang         = data.get("lang", "en").lower()
 
-        # Parse DOB
         day_str, mon_str, year_str = (data.get(k) for k in ("dob_day","dob_month","dob_year"))
         if day_str and mon_str and year_str:
             chinese_months = {
@@ -87,7 +81,6 @@ def analyze_name():
             (today.month, today.day) < (birthdate.month, birthdate.day)
         )
 
-        # Language-specific prompt
         if lang == "zh":
             prompt = f"请用简体中文生成一份学习模式统计报告，面向年龄 {age}、性别 {gender}、地区 {country} 的孩子。"
         elif lang == "tw":
@@ -109,19 +102,12 @@ def analyze_name():
         improved_percent  = round(base_improve / 5) * 5
         struggle_percent  = round(base_struggle / 5) * 5
 
-        if lang == "en":
-            titles = ["Learning Preferences", "Study Habits", "Math Performance"]
-            labels = [
-                ["Visual","Auditory","Kinesthetic"],
-                ["Regular Study","Group Study","Solo Study"],
-                ["Algebra","Geometry"]
-            ]
-        elif lang == "zh":
-            titles = ["学习偏好", "学习习惯", "数学表现"]
-            labels = [["视觉","听觉","动手"],["定期学习","小组学习","独自学习"],["代数","几何"]]
-        else:
-            titles = ["學習偏好", "學習習慣", "數學表現"]
-            labels = [["視覺","聽覺","動手"],["定期學習","小組學習","獨自學習"],["代數","幾何"]]
+        titles = ["Learning Preferences", "Study Habits", "Math Performance"]
+        labels = [
+            ["Visual","Auditory","Kinesthetic"],
+            ["Regular Study","Group Study","Solo Study"],
+            ["Algebra","Geometry"]
+        ]
 
         metrics = [
             {"title": titles[0], "labels": labels[0],
@@ -152,7 +138,7 @@ def analyze_name():
           <h2>📊 Charts</h2><div style="font-size:14px;">
         """
 
-        palette = ["#5E9CA0","#FF9F40","#9966FF","#4BC0C0","#FF6384","#36A2EB","#FFCE56","#C9CBCF"]
+        palette = ["#5E9CA0","#FF9F40","#9966FF"]
         for m in metrics:
             email_html += f"<strong>{m['title']}</strong><br>\n"
             for idx, (lbl, val) in enumerate(zip(m["labels"], m["values"])):
@@ -162,7 +148,6 @@ def analyze_name():
                     f"<span style='display:inline-block; width:{val}%; height:12px; background:{color}; border-radius:4px;'></span>&nbsp;{val}%</div>\n"
                 )
             email_html += "<br>\n"
-
         email_html += "</div></body></html>"
 
         send_email(name, chinese_name, gender, birthdate.date(),
@@ -221,4 +206,34 @@ def boss_analyze():
                    country, referrer, email_html)
 
         metrics = [
-            {"title": "Leadership Execution", "labels": ["Teamwork", "Responsibility", "Problem Solving"], "values": [72, 85, 67]},
+            {
+                "title": "Leadership Execution",
+                "labels": ["Teamwork", "Responsibility", "Problem Solving"],
+                "values": [72, 85, 67]
+            },
+            {
+                "title": "Communication Effectiveness",
+                "labels": ["Clarity", "Feedback", "Openness"],
+                "values": [78, 69, 83]
+            },
+            {
+                "title": "Growth Potential",
+                "labels": ["Initiative", "Adaptability", "Vision"],
+                "values": [88, 74, 91]
+            }
+        ]
+
+        analysis = "📊 Personalized Insight Summary:\n\n"
+        analysis += f"• {member_name} shows strong leadership traits, with potential to improve in problem-solving.\n"
+        analysis += f"• Communication clarity can be further enhanced through coaching.\n"
+        analysis += f"• Growth outlook is promising, especially in adaptability and initiative.\n"
+        analysis += "\n[Got it!! I fully understand your situation now. Now we should proceed to the next step...👇]"
+
+        return jsonify({"metrics": metrics, "analysis": analysis})
+
+    except Exception as e:
+        app.logger.exception("Error in /boss_analyze")
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0")
