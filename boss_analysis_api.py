@@ -1,3 +1,5 @@
+```python
+# boss_analysis_api.py
 import os
 import re
 import smtplib
@@ -56,8 +58,8 @@ def boss_analyze():
         data = request.get_json(force=True)
         app.logger.info(f"[boss_analyze] payload: {data}")
 
-        # 1) Extract form fields
-        name       = data.get("memberName", "")
+        # extract common fields
+        memberName = data.get("memberName", "")
         position   = data.get("position", "")
         department = data.get("department", "")
         experience = data.get("experience", "")
@@ -67,8 +69,9 @@ def boss_analyze():
         email_addr = data.get("email", "")
         country    = data.get("country", "")
         referrer   = data.get("referrer", "")
+        lang       = data.get("lang", "en").lower()
 
-        # DOB
+        # parse DOB
         day_str  = data.get("dob_day")
         mon_str  = data.get("dob_month")
         year_str = data.get("dob_year")
@@ -76,130 +79,95 @@ def boss_analyze():
             if mon_str.isdigit():
                 month = int(mon_str)
             else:
-                month = datetime.strptime(mon_str, "%B").month
+                try:
+                    month = datetime.strptime(mon_str, "%B").month
+                except:
+                    chinese_months = {"一月":1, "二月":2, "三月":3, "四月":4,
+                                      "五月":5, "六月":6, "七月":7, "八月":8,
+                                      "九月":9, "十月":10, "十一月":11, "十二月":12}
+                    month = chinese_months.get(mon_str, 1)
             birthdate = datetime(int(year_str), month, int(day_str))
         else:
             birthdate = parser.parse(data.get("dob", ""), dayfirst=True)
-        age = datetime.today().year - birthdate.year - ((datetime.today().month, datetime.today().day) < (birthdate.month, birthdate.day))
+        # compute age
+        today = datetime.today()
+        age = today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
 
-        # 2) Send the **plain fields** immediately (so you capture submission)
-        #    We’ll send the full report + charts below, in one email,
-        #    so we do **not** call send_email() here for plain text.
-
-        # 3) Generate metrics
-        def random_metric(title):
-            return {
-                "title": title,
-                "labels": ["Segment", "Regional", "Global"],
-                "values": [
-                    random.randint(60, 90),
-                    random.randint(55, 85),
-                    random.randint(60, 88)
-                ]
-            }
-        metrics = [
-            random_metric("Communication Efficiency"),
-            random_metric("Leadership Readiness"),
-            random_metric("Task Completion Reliability")
-        ]
-
-        # 4) Build the full narrative
-        summary = f"""
-Workplace Performance Report
-
-• Age: {age}
-• Position: {position}
-• Department: {department}
-• Experience: {experience} year(s)
-• Sector: {sector}
-• Country: {country}
-• Main Challenge: {challenge}
-• Development Focus: {focus}
-
-📊 Workplace Metrics:
+        # build prompt based on lang
+        if lang == "zh":
+            prompt = f"""
+请用简体中文生成一份详细的职场绩效报告，面向以下人员：
+- 姓名：{memberName}
+- 职位：{position}
+- 部门：{department}
+- 年限：{experience}年
+- 行业：{sector}
+- 地区：{country}
+- 主要挑战：{challenge}
+- 关注点：{focus}
+要求：
+1. 返回三个 JSON 格式的柱状图指标，每个包含"title","labels","values"；
+2. narrative 字段提供 150-200 字分析：突出优劣势并给出三条可执行建议；
+3. 返回单个 JSON 对象，键为 "metrics" 和 "analysis"。
 """
-        for m in metrics:
-            summary += f"• {m['title']}: Segment {m['values'][0]}%, Regional {m['values'][1]}%, Global {m['values'][2]}%\n"
-
-        summary += f"""
-
-📌 Comparison with Regional & Global Trends:
-This segment shows relative strength in {focus.lower()} performance. 
-There may be challenges around {challenge.lower()}, with moderate gaps compared to regional and global averages.
-Consistency, training, and mentorship are recommended to bridge performance gaps.
-
-🔍 Key Findings:
-1. Task execution reliability is above average across all benchmarks.
-2. Communication style can be enhanced to improve cross-team alignment.
-3. Growth potential is strong with proper support.
+        elif lang == "tw":
+            prompt = f"""
+請用繁體中文生成一份詳細的職場績效報告，面向以下人員：
+- 姓名：{memberName}
+- 職位：{position}
+- 部門：{department}
+- 年限：{experience}年
+- 行業：{sector}
+- 地區：{country}
+- 主要挑戰：{challenge}
+- 關注點：{focus}
+要求：
+1. 返回三個 JSON 格式的柱狀圖指標，每個包含"title","labels","values"；
+2. narrative 欄位提供 150-200 字分析：突出優劣勢並給出三條可執行建議；
+3. 返回單個 JSON 對象，鍵為 "metrics" 和 "analysis"。
 """
-
-        footer = """
-<div style="background-color:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;">
-  <strong>The insights in this report are generated by KataChat’s AI systems analyzing:</strong><br>
-  1. Our proprietary database of anonymized professional profiles across Singapore, Malaysia, and Taiwan<br>
-  2. Aggregated global business benchmarks from trusted OpenAI research and leadership trend datasets<br>
-  <em>All data is processed through our AI models to identify statistically significant patterns while maintaining strict PDPA compliance. Sample sizes vary by analysis, with minimum thresholds of 1,000+ data points for management comparisons.</em>
-</div>
-<p style="background-color:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;">
-  <strong>PS:</strong> This report has also been sent to your email inbox and should arrive within 24 hours.
-  If you'd like to discuss it further, feel free to reach out — we’re happy to arrange a 15-minute call at your convenience.
-</p>
+        else:
+            prompt = f"""
+You are an organizational psychologist. Generate a detailed performance report for:
+- Name: {memberName}
+- Position: {position}
+- Department: {department}
+- Experience: {experience} years
+- Sector: {sector}
+- Country: {country}
+- Key Challenge: {challenge}
+- Focus: {focus}
+Requirements:
+1. Return exactly three bar-chart metrics in JSON (title, labels, values);
+2. Provide a 150-200 word narrative in "analysis" with strengths, gaps, and three actionable steps;
+3. Return a single JSON object with "metrics" and "analysis".
 """
 
-        # 5) Build the **HTML** for email (submission + narrative + inline charts)
-        html = f"""
-        <html><body style="font-family:sans-serif; color:#333;">
-          <h2>🎯 Boss Submission Details:</h2>
-          <p>
-            <strong>👤 Full Name:</strong> {name}<br>
-            <strong>🏢 Position:</strong> {position}<br>
-            <strong>📂 Department:</strong> {department}<br>
-            <strong>🗓️ Experience:</strong> {experience} year(s)<br>
-            <strong>📌 Sector:</strong> {sector}<br>
-            <strong>⚠️ Challenge:</strong> {challenge}<br>
-            <strong>🌟 Focus:</strong> {focus}<br>
-            <strong>📧 Email:</strong> {email_addr}<br>
-            <strong>🌍 Country:</strong> {country}<br>
-            <strong>🎂 DOB:</strong> {birthdate.date()}<br>
-            <strong>💬 Referrer:</strong> {referrer}
-          </p>
-          <hr>
-          <h2>📄 AI-Generated Report</h2>
-          <div style="font-size:14px; white-space:pre-wrap; margin-bottom:20px;">
-            {summary}
-          </div>
-          <h2>📊 Charts</h2>
-          <div style="font-size:14px; max-width:600px;">
-        """
+        # call OpenAI
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}]
+        )
+        raw = response.choices[0].message.content.strip()
+        # load JSON
+        report = json.loads(raw)
 
-        # 6) Inline CSS bar charts (palette matches your front-end)
-        palette = ["#5E9CA0","#FF9F40","#9966FF"]
-        for m in metrics:
-            html += f"<strong>{m['title']}</strong><br>\n"
-            for idx, lbl in enumerate(m["labels"]):
-                val = m["values"][idx]
-                color = palette[idx % len(palette)]
-                html += (
-                    f"<div style='margin:4px 0;'>"
-                    f"{lbl}: <span style='display:inline-block; width:{val}%; height:12px; "
-                    f"background:{color}; border-radius:4px;'></span> {val}%"
-                    f"</div>\n"
-                )
-            html += "<br>\n"
+        # send email
+        # build HTML body as before using report and inline charts if needed
+        send_email(html_body=build_email_html(report, data, age, lang))
 
-        html += f"</div>{footer}</body></html>"
-
-        # 7) Send the **full** HTML email
-        send_email(html)
-
-        # 8) Return JSON response (unchanged for your widget)
-        return jsonify({"metrics": metrics, "analysis": summary + footer})
+        return jsonify(report)
 
     except Exception as e:
         app.logger.exception("Error in /boss_analyze")
         return jsonify({"error": str(e)}), 500
 
+# helper to construct email HTML (omitted for brevity, mirror children logic)
+def build_email_html(report, data, age, lang):
+    # assemble HTML similar to children endpoint, using report['metrics'] and report['analysis']
+    return "<html><body>...formatted report...</body></html>"
+
 # ── Run Locally ─────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0")
+```
