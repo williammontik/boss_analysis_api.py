@@ -169,10 +169,10 @@ def boss_analyze():
   <strong>報告洞見由 KataChat 的 AI 系統生成，數據來源：</strong><br>
   1. 我們的跨新加坡、馬來西亞和台灣匿名專業檔案數據庫<br>
   2. 可信 OpenAI 研究和領導力趨勢數據集的全球商業基準<br>
-  <em>所有數據均通過 AI 模型處理，以識別統計學顯著模式，同時嚴格遵守 PDPA 合規要求。每項分析樣本量最低 1,000+ 數據點。</em>
+  <em>所有數據均通過 AI 模型處理，以識別統計學顯著模式，同時嚴格遵守 PDPA 合規要求。每項分析樣本量最低 1,000+ 数据点。</em>
 </div>
 <p style="background-color:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;">
-  <strong>PS:</strong> 本報告已發送至您的郵箱，24 小时內可查收。如需进一步讨论，欢迎随时联系，我们可安排 15 分钟电话会议。
+  <strong>PS:</strong> 本報告已發送至您的郵箱，24 小時內可查收。如需進一步討論，歡迎隨時聯繫，我們可安排 15 分鐘電話會議。
 </p>
 """
         else:
@@ -211,14 +211,21 @@ def boss_analyze():
   <em>All data is processed through our AI models to identify statistically significant patterns while maintaining strict PDPA compliance. Sample sizes vary by analysis, with minimum thresholds of 1,000+ data points for management comparisons.</em>
 </div>
 <p style="background-color:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;">
-  <strong>PS:</strong> This report has also been sent to your email inbox and should arrive within 24 hours.
-  If you'd like to discuss it further, feel free to reach out — we’re happy to arrange a 15-minute call at your convenience.
+  <strong>PS:</strong> This report has also been sent to your email inbox and should arrive within 24 hours. If you'd like to discuss it further, feel free to reach out — we’re happy to arrange a 15-minute call at your convenience.
 </p>
 """
         lines.append(footer)
         analysis = "\n".join(lines)
 
-        # 5) Build improved HTML email
+        # 5) Build the polished HTML email
+        heading_icon = "📄"
+        if lang == "zh":
+            report_heading = "AI-生成报告"
+        elif lang == "tw":
+            report_heading = "AI-生成報告"
+        else:
+            report_heading = "AI-Generated Report"
+
         html = f"""
 <html><body style="font-family:sans-serif;color:#333">
   <h2>🎯 Boss Submission Details:</h2>
@@ -236,9 +243,10 @@ def boss_analyze():
     💬 <strong>Referrer:</strong> {referrer}
   </p>
   <hr style="border:0;border-top:1px solid #e0e0e0;margin:20px 0;">
-  <section style="margin-bottom:30px;">
-    <h2 style="font-size:20px;color:#5E9CA0;margin-bottom:12px;">
-      📄 AI-Generated Report
+  <section style="margin-bottom:20px;">
+    <h2 style="display:flex; align-items:center; font-size:22px; color:#5E9CA0; margin-bottom:12px;">
+      <span style="font-size:28px; line-height:1; margin-right:8px;">{heading_icon}</span>
+      {report_heading}
     </h2>
     <div style="
          background:#fafafa;
