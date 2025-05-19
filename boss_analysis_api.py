@@ -33,7 +33,7 @@ if not SMTP_PASSWORD:
 
 def send_email(html_body: str):
     """
-    Sends an HTML email containing the submission and report.
+    Sends an HTML email containing the full submission and report.
     """
     subject = "New Boss Submission"
     msg = MIMEText(html_body, 'html')
@@ -78,7 +78,6 @@ def boss_analyze():
         country     = data.get("country", "").strip()
         referrer    = data.get("referrer", "").strip()
         contact_num = data.get("contactNumber", "").strip()
-        lang        = data.get("lang", "en").lower()
 
         # 2) Parse DOB & compute age
         day_str  = data.get("dob_day")
@@ -97,65 +96,98 @@ def boss_analyze():
         today = datetime.today()
         age = today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
 
-        # 3) Build language-specific prompt for narrative
-        if lang == "zh":
-            prompt = f"""
-请用简体中文生成一份针对“{name}”（年龄 {age}，职位 {position}，行业 {sector}）的绩效分析，面临关键挑战：“{challenge}”。重点：
-1. 150–200 字分析
-2. 突出三大优势与差距
-3. 提出三条可行建议
-4. 学术风格
-"""
-        elif lang == "tw":
-            prompt = f"""
-請用繁體中文生成一份針對「{name}」（年齡 {age}，職位 {position}，行業 {sector}）的績效分析，面臨關鍵挑戰：「{challenge}」。重點：
-1. 150–200 字分析
-2. 突出三大優勢與差距
-3. 提出三條可行建議
-4. 學術風格
-"""
-        else:
-            prompt = f"""
-Generate a 150–200 word performance analysis for "{name}" (age {age}, position {position}, sector {sector}) who faces the key challenge: "{challenge}". Requirements:
-1. Highlight three strengths vs. region/global
-2. Identify the biggest performance gap
-3. Offer three actionable recommendations
-4. Academic style only
-"""
+        # 3) Call OpenAI for the narrative (English only for email; widget gets JSON below)
+        prompt = f"""
+You are an expert organizational psychologist.
+Generate a detailed performance report for a team member named "{name}",
+working as "{position}", who faces this key challenge:
+"{challenge}". Their preferred development focus is "{focus}", and they are located in "{country}".
 
-        # 4) Call OpenAI
+Requirements:
+1. Provide a 150–200 word narrative.
+2. Highlight their top strength vs. region/global.
+3. Identify their biggest gap.
+4. Offer three actionable next steps.
+5. Return only the narrative text (no JSON).
+"""
         response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[{"role":"user","content":prompt}]
         )
-        analysis = re.sub(r"<[^>]+>", "", response.choices[0].message.content).strip()
+        analysis = response.choices[0].message.content.strip()
 
-        # 5) Generate three random metrics
+        # 4) Generate metrics
         def random_metric(title):
             return {
                 "title": title,
-                "labels": ["Segment", "Regional", "Global"],
+                "labels": ["Segment", "Regional Avg", "Global Avg"],
                 "values": [
                     random.randint(60, 90),
                     random.randint(55, 85),
                     random.randint(60, 88)
                 ]
             }
+
         metrics = [
             random_metric("Communication Efficiency"),
             random_metric("Leadership Readiness"),
             random_metric("Task Completion Reliability")
         ]
 
-        # 6) (Optional) Send HTML email with results
-        # html_body = build_your_html(name, position, analysis, metrics, ...)
-        # send_email(html_body)
+        # 5) Build the HTML email body exactly as your working example
+        html = f"""<html><body style="font-family:sans-serif;color:#333">
+<h2>🎯 Boss Submission Details:</h2>
+<p>
+👤 <strong>Full Name:</strong> {name}<br>
+🏢 <strong>Position:</strong> {position}<br>
+📂 <strong>Department:</strong> {department}<br>
+🗓️ <strong>Experience:</strong> {experience} year(s)<br>
+📌 <strong>Sector:</strong> {sector}<br>
+⚠️ <strong>Challenge:</strong> {challenge}<br>
+🌟 <strong>Focus:</strong> {focus}<br>
+📧 <strong>Email:</strong> {email_addr}<br>
+🌍 <strong>Country:</strong> {country}<br>
+🎂 <strong>DOB:</strong> {birthdate.date()}<br>
+💬 <strong>Referrer:</strong> {referrer}
+</p>
+<hr>
+<h2>📄 AI-Generated Report</h2>
+<pre style="font-size:14px;white-space:pre-wrap">{analysis}</pre>
+<hr>
+<h2>📊 Charts</h2>
+"""
 
-        # 7) Return JSON just like children endpoint
-        return jsonify({
-            "metrics": metrics,
-            "analysis": analysis
-        })
+        # Inline CSS bar charts
+        palette = ["#5E9CA0","#FF9F40","#9966FF"]
+        for m in metrics:
+            html += f"<h3>{m['title']}</h3>"
+            for idx, lbl in enumerate(m["labels"]):
+                val = m["values"][idx]
+                color = palette[idx]
+                html += (
+                    f"<div style='margin:4px 0; line-height:1.4'>"
+                    f"{lbl}: <span style='display:inline-block; width:{val}%; height:12px; "
+                    f"background:{color}; border-radius:4px;'></span> &nbsp;{val}%"
+                    f"</div>"
+                )
+        html += """
+<div style="background-color:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;">
+  <strong>The insights in this report are generated by KataChat’s AI systems analyzing:</strong><br>
+  1. Our proprietary database of anonymized professional profiles across Singapore, Malaysia, and Taiwan<br>
+  2. Aggregated global business benchmarks from trusted OpenAI research and leadership trend datasets<br>
+  <em>All data is processed through our AI models to identify statistically significant patterns while maintaining strict PDPA compliance. Sample sizes vary by analysis, with minimum thresholds of 1,000+ data points for management comparisons.</em>
+</div>
+<p style="background-color:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;">
+  <strong>PS:</strong> This report has also been sent to your email inbox and should arrive within 24 hours.
+  If you'd like to discuss it further, feel free to reach out — we’re happy to arrange a 15-minute call at your convenience.
+</p>
+</body></html>"""
+
+        # 6) Send the email
+        send_email(html)
+
+        # 7) Return the same JSON that the widget expects
+        return jsonify({"metrics": metrics, "analysis": analysis})
 
     except Exception as e:
         app.logger.exception("Error in /boss_analyze")
