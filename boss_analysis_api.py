@@ -42,11 +42,12 @@ def send_email(html_body: str):
     except Exception:
         app.logger.exception("Email sending failed")
 
+
 @app.route("/boss_analyze", methods=["POST"])
 def boss_analyze():
     data = request.get_json(force=True)
     try:
-        # Extract and clean inputs
+        # ── 1) Extract & strip fields ───────────────────────────────
         name        = data.get("memberName","").strip()
         position    = data.get("position","").strip()
         department  = data.get("department","").strip()
@@ -58,33 +59,31 @@ def boss_analyze():
         country     = data.get("country","").strip()
         referrer    = data.get("referrer","").strip()
         contact_num = data.get("contactNumber","").strip()
+        lang        = data.get("lang","en").lower()
 
-        # ── Parse DOB robustly ──────────────────────────────────
-        day_str  = data.get("dob_day","").strip()
-        mon_str  = data.get("dob_month","").strip()
-        year_str = data.get("dob_year","").strip()
-        if day_str and mon_str and year_str:
+        # ── 2) Parse DOB & compute age ───────────────────────────────
+        d = data.get("dob_day","").strip()
+        m = data.get("dob_month","").strip()
+        y = data.get("dob_year","").strip()
+        if d and m and y:
             chinese_months = {
-                "一月":1, "二月":2, "三月":3, "四月":4,
-                "五月":5, "六月":6, "七月":7, "八月":8,
-                "九月":9, "十月":10, "十一月":11, "十二月":12
+                "一月":1,"二月":2,"三月":3,"四月":4,
+                "五月":5,"六月":6,"七月":7,"八月":8,
+                "九月":9,"十月":10,"十一月":11,"十二月":12
             }
-            if mon_str.isdigit():
-                month = int(mon_str)
-            elif mon_str in chinese_months:
-                month = chinese_months[mon_str]
+            if m.isdigit():
+                month = int(m)
+            elif m in chinese_months:
+                month = chinese_months[m]
             else:
-                month = datetime.strptime(mon_str, "%B").month
-            birthdate = datetime(int(year_str), month, int(day_str))
+                month = datetime.strptime(m, "%B").month
+            birthdate = datetime(int(y), month, int(d))
         else:
             birthdate = parser.parse(data.get("dob",""), dayfirst=True)
-
         today = datetime.today()
-        age = today.year - birthdate.year - (
-            (today.month, today.day) < (birthdate.month, birthdate.day)
-        )
+        age = today.year - birthdate.year - ((today.month,today.day) < (birthdate.month,birthdate.day))
 
-        # ── Generate Metrics ────────────────────────────────────
+        # ── 3) Generate random metrics ───────────────────────────────
         def mk(title):
             return {
                 "title": title,
@@ -95,53 +94,126 @@ def boss_analyze():
                     random.randint(60,88)
                 ]
             }
-        metrics = [ mk("Communication Efficiency"),
-                    mk("Leadership Readiness"),
-                    mk("Task Completion Reliability") ]
+        metrics = [
+            mk("Communication Efficiency"),
+            mk("Leadership Readiness"),
+            mk("Task Completion Reliability")
+        ]
 
-        # ── Build fixed‐template analysis ───────────────────────
+        # ── 4) Build fixed-template analysis by language ─────────────
         lines = []
-        lines.append("📄 AI-Generated Report\n\nWorkplace Performance Report\n")
-        lines += [
-            f"• Age: {age}",
-            f"• Position: {position}",
-            f"• Department: {department}",
-            f"• Experience: {experience} year(s)",
-            f"• Sector: {sector}",
-            f"• Country: {country}",
-            f"• Main Challenge: {challenge}",
-            f"• Development Focus: {focus}\n",
-            "📊 Workplace Metrics:"
-        ]
-        for m in metrics:
-            a,b,c = m["values"]
-            lines.append(f"• {m['title']}: Segment {a}%, Regional {b}%, Global {c}%")
-        lines.append(
-            "\n📌 Comparison with Regional & Global Trends:\n"
-            f"This segment shows relative strength in {focus.lower()} performance.\n"
-            f"There may be challenges around {focus.lower()}, with moderate gaps compared to regional and global averages.\n"
-            "Consistency, training, and mentorship are recommended to bridge performance gaps.\n"
-        )
-        lines.append("🔍 Key Findings:")
-        lines += [
-            "1. Task execution reliability is above average across all benchmarks.",
-            "2. Communication style can be enhanced to improve cross-team alignment.",
-            "3. Growth potential is strong with proper support.\n"
-        ]
-        # Footer text (universal)
-        footer_text = (
-            "The insights in this report are generated by KataChat’s AI systems analyzing:\n"
-            "1. Our proprietary database of anonymized professional profiles across Singapore, Malaysia, and Taiwan\n"
-            "2. Aggregated global business benchmarks from trusted OpenAI research and leadership trend datasets\n"
-            "All data is processed through our AI models to identify statistically significant patterns while maintaining strict PDPA compliance. "
-            "Sample sizes vary by analysis, with minimum thresholds of 1,000+ data points for management comparisons.\n"
-            "PS: This report has also been sent to your email inbox and should arrive within 24 hours. "
-            "If you'd like to discuss it further, feel free to reach out — we’re happy to arrange a 15-minute call at your convenience."
-        )
-        lines.append(footer_text)
+        if lang == "zh":
+            lines += [
+                "📄 AI-生成报告\n\n工作绩效报告\n",
+                f"• 年龄：{age}",
+                f"• 职位：{position}",
+                f"• 部门：{department}",
+                f"• 工作经验：{experience} 年",
+                f"• 行业：{sector}",
+                f"• 国家：{country}",
+                f"• 主要挑战：{challenge}",
+                f"• 发展重点：{focus}\n",
+                "📊 职场指标："
+            ]
+            for m in metrics:
+                a,b,c = m["values"]
+                lines.append(f"• {m['title']}: 分段 {a}%，区域 {b}%，全球 {c}%")
+            lines.append(
+                "\n📌 区域与全球趋势对比：\n"
+                f"该指标在“{focus}”方面表现较强。\n"
+                f"在“{focus}”方面可能存在一定差距，与区域和全球平均水平相比有中等差距。\n"
+                "建议通过持续培训和辅导来缩小差距。\n"
+            )
+            lines.append("🔍 关键发现：")
+            lines += [
+                "1. 任务执行可靠性高于所有基准。",
+                "2. 可增强沟通风格以改善跨团队协作。",
+                "3. 在适当支持下具有强劲的成长潜力。\n"
+            ]
+            footer = (
+                "本报告洞见由 KataChat 的 AI 系统生成，数据来源：\n"
+                "1. 我们经家长同意的跨新加坡、马来西亚和台湾的匿名专业档案数据库\n"
+                "2. 来自可信 OpenAI 研究和领导力趋势数据集的全球商业基准汇总\n"
+                "所有数据均通过我们的 AI 模型处理，以识别具有统计学意义的模式，同时严格遵守 PDPA 合规要求。"
+                "每项分析的样本量最低阈值为 1,000+ 数据点。\n"
+                "PS：本报告已发送至您的邮箱，24 小时内可查收。如需进一步讨论，欢迎随时联系，我们可安排 15 分钟电话会议。"
+            )
+        elif lang == "tw":
+            lines += [
+                "📄 AI-生成報告\n\n工作績效報告\n",
+                f"• 年齡：{age}",
+                f"• 職位：{position}",
+                f"• 部門：{department}",
+                f"• 工作經驗：{experience} 年",
+                f"• 行業：{sector}",
+                f"• 國家：{country}",
+                f"• 主要挑戰：{challenge}",
+                f"• 發展重點：{focus}\n",
+                "📊 職場指標："
+            ]
+            for m in metrics:
+                a,b,c = m["values"]
+                lines.append(f"• {m['title']}: 分段 {a}%，區域 {b}%，全球 {c}%")
+            lines.append(
+                "\n📌 區域與全球趨勢對比：\n"
+                f"該指標在「{focus}」方面表現較強。\n"
+                f"在「{focus}」方面可能存在一定差距，與區域和全球平均水平相比有中等差距。\n"
+                "建議通過持續培訓和輔導來縮小差距。\n"
+            )
+            lines.append("🔍 關鍵發現：")
+            lines += [
+                "1. 任務執行可靠性高於所有基準。",
+                "2. 可增強溝通風格以改善跨團隊協作。",
+                "3. 在適當支持下具有強勁的成長潛力。\n"
+            ]
+            footer = (
+                "本報告洞見由 KataChat 的 AI 系統生成，數據來源：\n"
+                "1. 我們經家長同意的跨新加坡、馬來西亞和台灣的匿名專業檔案數據庫\n"
+                "2. 來自可信 OpenAI 研究和領導力趨勢數據集的全球商業基準彙總\n"
+                "所有數據均通過我們的 AI 模型處理，以識別具有統計學意義的模式，同時嚴格遵守 PDPA 合規要求。"
+                "每項分析的樣本量最低閾值為 1,000+ 數據點。\n"
+                "PS：本報告已發送至您的郵箱，24 小時內可查收。如需進一步討論，歡迎隨時聯繫，我們可安排 15 分鐘電話會議。"
+            )
+        else:
+            lines += [
+                "📄 AI-Generated Report\n\nWorkplace Performance Report\n",
+                f"• Age: {age}",
+                f"• Position: {position}",
+                f"• Department: {department}",
+                f"• Experience: {experience} year(s)",
+                f"• Sector: {sector}",
+                f"• Country: {country}",
+                f"• Main Challenge: {challenge}",
+                f"• Development Focus: {focus}\n",
+                "📊 Workplace Metrics:"
+            ]
+            for m in metrics:
+                a,b,c = m["values"]
+                lines.append(f"• {m['title']}: Segment {a}%, Regional {b}%, Global {c}%")
+            lines.append(
+                "\n📌 Comparison with Regional & Global Trends:\n"
+                f"This segment shows relative strength in {focus.lower()} performance.\n"
+                f"There may be challenges around {focus.lower()}, with moderate gaps compared to regional and global averages.\n"
+                "Consistency, training, and mentorship are recommended to bridge performance gaps.\n"
+            )
+            lines.append("🔍 Key Findings:")
+            lines += [
+                "1. Task execution reliability is above average across all benchmarks.",
+                "2. Communication style can be enhanced to improve cross-team alignment.",
+                "3. Growth potential is strong with proper support.\n"
+            ]
+            footer = (
+                "The insights in this report are generated by KataChat’s AI systems analyzing:\n"
+                "1. Our proprietary database of anonymized professional profiles across Singapore, Malaysia, and Taiwan\n"
+                "2. Aggregated global business benchmarks from trusted OpenAI research and leadership trend datasets\n"
+                "All data is processed through our AI models to identify statistically significant patterns while maintaining strict PDPA compliance. "
+                "Sample sizes vary by analysis, with minimum thresholds of 1,000+ data points for management comparisons.\n"
+                "PS: This report has also been sent to your email inbox and should arrive within 24 hours. If you'd like to discuss it further, feel free to reach out — we’re happy to arrange a 15-minute call at your convenience."
+            )
+        lines.append(footer)
         analysis = "\n".join(lines)
 
-        # ── Build HTML email body with blue blocks ─────────────
+        # ── 5) Build HTML email with blue footers ───────────────────
         html = f"""
 <html><body style="font-family:sans-serif;color:#333">
 <h2>🎯 Boss Submission Details:</h2>
@@ -160,21 +232,21 @@ def boss_analyze():
 </p>
 
 <div style="background:#e6f7ff;padding:15px;border-left:4px solid #00529B;margin:20px 0;">
-  <strong>The insights in this report are generated by KataChat’s AI systems analyzing:</strong><br>
-  1. Our proprietary database of anonymized professional profiles across Singapore, Malaysia, and Taiwan<br>
-  2. Aggregated global business benchmarks from trusted OpenAI research and leadership trend datasets<br>
-  <em>All data is processed through our AI models to identify statistically significant patterns while maintaining strict PDPA compliance. Sample sizes vary by analysis, with minimum thresholds of 1,000+ data points for management comparisons.</em>
+  {footer.splitlines()[0]}<br>
+  {'<br>'.join(footer.splitlines()[1:3])}<br>
+  <em>{footer.splitlines()[3]}</em>
 </div>
 
 <div style="background:#e6f7ff;padding:15px;border-left:4px solid #00529B;margin-bottom:20px;">
-  <strong>PS:</strong> This report has also been sent to your email inbox and should arrive within 24 hours. If you'd like to discuss it further, feel free to reach out — we’re happy to arrange a 15-minute call at your convenience.
+  {footer.splitlines()[-1]}
 </div>
 
 <pre style="font-size:14px;white-space:pre-wrap">{analysis}</pre>
-</body></html>"""
+</body></html>
+"""
         send_email(html)
 
-        # ── Return JSON for the widget ─────────────────────────
+        # ── 6) Return JSON for widget ──────────────────────────────
         return jsonify({"metrics": metrics, "analysis": analysis})
 
     except Exception as e:
