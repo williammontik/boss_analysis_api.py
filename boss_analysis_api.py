@@ -172,7 +172,7 @@ def boss_analyze():
   <em>所有數據均通過 AI 模型處理，以識別統計學顯著模式，同時嚴格遵守 PDPA 合規要求。每項分析樣本量最低 1,000+ 數據點。</em>
 </div>
 <p style="background-color:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;">
-  <strong>PS:</strong> 本報告已發送至您的郵箱，24 小时內可查收。如需进一步讨论，欢迎随时联系，我们可安排 15 分钟电话会议。
+  <strong>PS:</strong> 本報告已發送至您的郵箱，24 小時內可查收。如需進一步討論，歡迎隨時聯繫，我們可安排 15 分鐘電話會議。
 </p>
 """
         else:
@@ -218,7 +218,7 @@ def boss_analyze():
         lines.append(footer)
         analysis = "\n".join(lines)
 
-        # 5) Build improved HTML email
+        # 5) Build email HTML with preferred report div + footer
         html = f"""
 <html><body style="font-family:sans-serif;color:#333">
   <h2>🎯 Boss Submission Details:</h2>
@@ -235,23 +235,11 @@ def boss_analyze():
     🎂 <strong>DOB:</strong> {birthdate.date()}<br>
     💬 <strong>Referrer:</strong> {referrer}
   </p>
-  <hr style="border:0;border-top:1px solid #e0e0e0;margin:20px 0;">
-  <section style="margin-bottom:30px;">
-    <h2 style="font-size:20px;color:#5E9CA0;margin-bottom:12px;">
-      📄 AI-Generated Report
-    </h2>
-    <div style="
-         background:#fafafa;
-         border:1px solid #e0e0e0;
-         border-radius:6px;
-         padding:16px;
-         font-size:14px;
-         line-height:1.6;
-         white-space:pre-wrap;
-    ">
-      {analysis}
-    </div>
-  </section>
+  <hr>
+  <h2>📄 AI-Generated Report</h2>
+  <div style="font-size:14px; white-space:pre-wrap; margin-bottom:20px;">
+    {analysis}
+  </div>
   {footer}
 </body></html>
 """
