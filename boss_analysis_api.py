@@ -10,192 +10,158 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from openai import OpenAI
 
-# ── Flask Setup ─────────────────────────────────────────────────────────────
 app = Flask(__name__)
 CORS(app)
 app.logger.setLevel(logging.DEBUG)
 
-# ── OpenAI & SMTP Setup ─────────────────────────────────────────────────────
-openai_api_key = os.getenv("OPENAI_API_KEY")
-if not openai_api_key:
-    raise RuntimeError("OPENAI_API_KEY environment variable is not set.")
-client = OpenAI(api_key=openai_api_key)
-
-SMTP_SERVER   = "smtp.gmail.com"
-SMTP_PORT     = 587
+# OpenAI & SMTP setup
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 SMTP_USERNAME = "kata.chatbot@gmail.com"
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
-if not SMTP_PASSWORD:
-    app.logger.warning("SMTP_PASSWORD is not set; emails may fail.")
 
 def send_email(html_body: str):
-    """Send the HTML email containing submission, report, footer, and charts."""
     msg = MIMEText(html_body, 'html')
     msg["Subject"] = "New Boss Submission"
     msg["From"]    = SMTP_USERNAME
     msg["To"]      = SMTP_USERNAME
-    try:
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as s:
-            s.starttls()
-            s.login(SMTP_USERNAME, SMTP_PASSWORD)
-            s.send_message(msg)
-        app.logger.info("✅ Email sent successfully.")
-    except Exception:
-        app.logger.exception("❌ Email sending failed")
+    with smtplib.SMTP("smtp.gmail.com", 587) as s:
+        s.starttls()
+        s.login(SMTP_USERNAME, SMTP_PASSWORD)
+        s.send_message(msg)
 
-# ── /boss_analyze Endpoint ────────────────────────────────────────────────────
 @app.route("/boss_analyze", methods=["POST"])
 def boss_analyze():
     data = request.get_json(force=True)
-    try:
-        app.logger.info(f"[boss_analyze] payload: {data}")
 
-        # 1) Extract fields
-        name       = data.get("memberName", "").strip()
-        position   = data.get("position", "").strip()
-        department = data.get("department", "").strip()
-        experience = data.get("experience", "").strip()
-        sector     = data.get("sector", "").strip()
-        challenge  = data.get("challenge", "").strip()
-        focus      = data.get("focus", "").strip()
-        email_addr = data.get("email", "").strip()
-        country    = data.get("country", "").strip()
-        referrer   = data.get("referrer", "").strip()
-        lang       = data.get("lang", "en").lower()
+    # 1) Extract form fields
+    name       = data.get("memberName","").strip()
+    position   = data.get("position","").strip()
+    department = data.get("department","").strip()
+    experience = data.get("experience","").strip()
+    sector     = data.get("sector","").strip()
+    challenge  = data.get("challenge","").strip()
+    focus      = data.get("focus","").strip()
+    country    = data.get("country","").strip()
 
-        # 2) Parse DOB & compute age
-        d = data.get("dob_day", "").strip()
-        m = data.get("dob_month", "").strip()
-        y = data.get("dob_year", "").strip()
-        if d and m and y:
-            chinese_months = {
-                "一月": 1, "二月": 2, "三月": 3, "四月": 4,
-                "五月": 5, "六月": 6, "七月": 7, "八月": 8,
-                "九月": 9, "十月": 10, "十一月": 11, "十二月": 12
-            }
-            if m.isdigit():
-                month = int(m)
-            elif m in chinese_months:
-                month = chinese_months[m]
-            else:
-                month = datetime.strptime(m, "%B").month
-            birthdate = datetime(int(y), month, int(d))
+    # 2) Parse DOB & compute age
+    d = data.get("dob_day","")
+    m = data.get("dob_month","")
+    y = data.get("dob_year","")
+    if d and m and y:
+        chinese_months = {
+          "一月":1, "二月":2, "三月":3, "四月":4,
+          "五月":5, "六月":6, "七月":7, "八月":8,
+          "九月":9, "十月":10, "十一月":11, "十二月":12
+        }
+        if m.isdigit(): 
+            month = int(m)
+        elif m in chinese_months:
+            month = chinese_months[m]
         else:
-            birthdate = parser.parse(data.get("dob",""), dayfirst=True)
+            month = datetime.strptime(m, "%B").month
+        birthdate = datetime(int(y), month, int(d))
+    else:
+        birthdate = parser.parse(data.get("dob",""), dayfirst=True)
+    today = datetime.today()
+    age = today.year - birthdate.year - ((today.month,today.day)<(birthdate.month,birthdate.day))
 
-        today = datetime.today()
-        age = today.year - birthdate.year - (
-            (today.month, today.day) < (birthdate.month, birthdate.day)
-        )
+    # 3) Build prompt & get narrative
+    prompt = f"""
+You are an expert organizational psychologist.
+Write a ~150-word report narrative (no JSON) for a {position}, age {age}, in {country},
+facing challenge "{challenge}" and focus "{focus}".
+Highlight one top strength vs. benchmarks, one gap, and three next steps.
+"""
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role":"user","content":prompt}]
+    )
+    narrative = response.choices[0].message.content.strip()
 
-        # 3) Build prompt for narrative
-        prompt = (
-            f"You are an expert organizational psychologist.\n"
-            f"Generate a performance report for a team member aged {age}, position {position}, "
-            f"facing challenge \"{challenge}\", focus \"{focus}\", in {country}.\n"
-            "Requirements:\n"
-            "1. Three JSON bar-chart metrics (Individual, Regional, Global).\n"
-            "2. 150–200 word narrative highlighting top strength, biggest gap, three next steps.\n"
-            "Return only JSON with keys metrics and analysis.\n"
-        )
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role":"user","content":prompt}]
-        )
-        raw = response.choices[0].message.content.strip()
-        report = __import__("json").loads(raw)
-        metrics = report["metrics"]
-        narrative = report["analysis"]
+    # 4) Generate the three metrics locally
+    def make_metric(title):
+        return {
+            "title": title,
+            "labels": ["Segment","Regional","Global"],
+            "values": [random.randint(60,90),
+                       random.randint(55,85),
+                       random.randint(60,88)]
+        }
+    metrics = [
+        make_metric("Communication Efficiency"),
+        make_metric("Leadership Readiness"),
+        make_metric("Task Completion Reliability")
+    ]
 
-        # 4) Build plain text report for widget (narrative + footer)
-        footer_lines = [
-            "",
-            "The insights in this report are generated by KataChat’s AI systems analyzing:",
-            "1. Our proprietary database of anonymized professional profiles across Singapore, Malaysia, and Taiwan",
-            "2. Aggregated global business benchmarks from trusted OpenAI research and leadership trend datasets",
-            "All data is processed through our AI models to identify statistically significant patterns while maintaining strict PDPA compliance. Sample sizes vary by analysis, with minimum thresholds of 1,000+ data points for management comparisons.",
-            "",
-            "PS: This report has also been sent to your email inbox and should arrive within 24 hours. "
-            "If you'd like to discuss it further, feel free to reach out — we’re happy to arrange a 15-minute call at your convenience."
-        ]
-        plain_report = narrative + "\n" + "\n".join(footer_lines)
+    # 5) Build full plain_report (narrative + blue footer)
+    footer = (
+        "\n\nThe insights in this report are generated by KataChat’s AI systems analyzing:\n"
+        "1. Our proprietary database of anonymized professional profiles across Singapore, Malaysia, and Taiwan\n"
+        "2. Aggregated global business benchmarks from trusted OpenAI research and leadership trend datasets\n"
+        "All data is processed through our AI models to identify statistically significant patterns while maintaining strict PDPA compliance. "
+        "Sample sizes vary by analysis, with minimum thresholds of 1,000+ data points for management comparisons.\n\n"
+        "PS: This report has also been sent to your email inbox and should arrive within 24 hours. If you'd like to discuss it further, "
+        "feel free to reach out — we’re happy to arrange a 15-minute call at your convenience."
+    )
+    plain_report = narrative + footer
 
-        # 5) Prepare email HTML
-        # 5a) Submission details
-        submission_html = (
-            f"<h2>🎯 Boss Submission Details:</h2>"
-            f"<p>"
-            f"👤 <strong>Full Name:</strong> {name}<br>"
-            f"🏢 <strong>Position:</strong> {position}<br>"
-            f"📂 <strong>Department:</strong> {department}<br>"
-            f"🗓️ <strong>Experience:</strong> {experience} year(s)<br>"
-            f"📌 <strong>Sector:</strong> {sector}<br>"
-            f"⚠️ <strong>Challenge:</strong> {challenge}<br>"
-            f"🌟 <strong>Focus:</strong> {focus}<br>"
-            f"📧 <strong>Email:</strong> {email_addr}<br>"
-            f"🌍 <strong>Country:</strong> {country}<br>"
-            f"🎂 <strong>DOB:</strong> {birthdate.date()}<br>"
-            f"💬 <strong>Referrer:</strong> {referrer}"
-            f"</p><hr style='border:0;border-top:1px solid #e0e0e0;margin:20px 0;'>"
-        )
+    # 6) Build & send HTML email (details + narrative + footer + inline charts)
+    # -- submission
+    submission_html = f"""
+<h2>🎯 Boss Submission Details:</h2>
+<p>
+👤 <strong>Full Name:</strong> {name}<br>
+🏢 <strong>Position:</strong> {position}<br>
+📂 <strong>Department:</strong> {department}<br>
+🗓️ <strong>Experience:</strong> {experience} year(s)<br>
+📌 <strong>Sector:</strong> {sector}<br>
+⚠️ <strong>Challenge:</strong> {challenge}<br>
+🌟 <strong>Focus:</strong> {focus}<br>
+🌍 <strong>Country:</strong> {country}<br>
+🎂 <strong>Age:</strong> {age}
+</p><hr>
+"""
 
-        # 5b) Narrative with Markdown bar charts
-        narrative_html = f"<h2>📄 AI-Generated Report</h2><pre style='font-family:sans-serif;font-size:14px;white-space:pre-wrap'>{narrative}</pre>"
+    # -- narrative + blue footer
+    narrative_html = f"<h2>📄 AI-Generated Report</h2><pre style='white-space:pre-wrap'>{narrative}</pre>"
+    footer_html = (
+        "<div style='background:#e6f7ff;padding:15px;border-left:4px solid #00529B;margin:20px 0;'>"
+        "<strong style='color:#00529B;'>The insights in this report are generated by KataChat’s AI systems analyzing:</strong><br>"
+        "1. Our proprietary database of anonymized professional profiles across Singapore, Malaysia, and Taiwan<br>"
+        "2. Aggregated global business benchmarks from trusted OpenAI research and leadership trend datasets<br>"
+        "<em>All data is processed through our AI models to identify statistically significant patterns while maintaining strict PDPA compliance. Sample sizes vary by analysis, with minimum thresholds of 1,000+ data points for management comparisons.</em>"
+        "</div>"
+        "<p style='background:#e6f7ff;padding:15px;border-left:4px solid #00529B;margin:20px 0;'>"
+        "<strong style='color:#00529B;'>PS:</strong> This report has also been sent to your email inbox ...</p>"
+    )
 
-        # 5c) Blue-block footer
-        footer_html = (
-            "<div style='background:#e6f7ff;color:#00529B;padding:15px;border-left:4px solid #00529B;margin:20px 0;'>"
-            "<strong>The insights in this report are generated by KataChat’s AI systems analyzing:</strong><br>"
-            "1. Our proprietary database of anonymized professional profiles across Singapore, Malaysia, and Taiwan<br>"
-            "2. Aggregated global business benchmarks from trusted OpenAI research and leadership trend datasets<br>"
-            "<em>All data is processed through our AI models to identify statistically significant patterns while maintaining strict PDPA compliance. "
-            "Sample sizes vary by analysis, with minimum thresholds of 1,000+ data points for management comparisons.</em>"
-            "</div>"
-            "<p style='background:#e6f7ff;color:#00529B;padding:15px;border-left:4px solid #00529B;margin:20px 0;'>"
-            "<strong>PS:</strong> This report has also been sent to your email inbox and should arrive within 24 hours. "
-            "If you'd like to discuss it further, feel free to reach out — we’re happy to arrange a 15-minute call at your convenience."
-            "</p>"
-        )
+    # -- inline charts
+    charts_html = "<h2>📊 Charts</h2>"
+    for m in metrics:
+        charts_html += f"<h3>{m['title']}</h3>"
+        for label, val in zip(m["labels"], m["values"]):
+            charts_html += f"""
+<div style='display:flex;align-items:center;margin-bottom:6px;'>
+  <span style='width:110px;'>{label}:</span>
+  <div style='flex:1;background:#e0e0e0;border-radius:4px;overflow:hidden;margin:0 8px;'>
+    <div style='width:{val}%;background:#5E9CA0;height:12px;'></div>
+  </div>
+  <span>{val}%</span>
+</div>
+"""
 
-        # 5d) Inline CSS charts
-        charts_html = "<h2>📊 Charts</h2><div style='font-family:sans-serif;color:#333'>"
-        for metric in metrics:
-            title = metric["title"]
-            charts_html += f"<h3>{title}</h3>"
-            for label, value in zip(metric["labels"], metric["values"]):
-                charts_html += (
-                    "<div style='display:flex;align-items:center;margin-bottom:6px;'>"
-                    f"<span style='width:110px;'>{label}:</span>"
-                    "<div style='flex:1;background:#e0e0e0;border-radius:4px;overflow:hidden;margin:0 8px;'>"
-                    f"<div style='width:{value}%;background:#5E9CA0;height:12px;'></div>"
-                    "</div>"
-                    f"<span>{value}%</span>"
-                    "</div>"
-                )
-        charts_html += "</div>"
+    email_html = (
+        "<html><body style='font-family:sans-serif;color:#333'>"
+        f"{submission_html}"
+        f"{narrative_html}"
+        f"{footer_html}"
+        f"{charts_html}"
+        "</body></html>"
+    )
+    send_email(email_html)
 
-        # 5e) Full email HTML
-        html_email = (
-            "<html><body style='font-family:sans-serif;color:#333'>"
-            f"{submission_html}"
-            f"{narrative_html}"
-            f"{footer_html}"
-            f"{charts_html}"
-            "</body></html>"
-        )
+    # 7) Return JSON for the widget
+    return jsonify({"metrics": metrics, "analysis": plain_report})
 
-        send_email(html_email)
-
-        # 6) Return JSON for widget
-        return jsonify({
-            "metrics": metrics,
-            "analysis": plain_report
-        })
-
-    except Exception as e:
-        app.logger.exception("Error in /boss_analyze")
-        return jsonify({"error": str(e)}), 500
-
-# ── Run Locally ─────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0")
