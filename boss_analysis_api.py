@@ -1,3 +1,60 @@
+import os
+import re
+import smtplib
+import random
+import logging
+import json
+from datetime import datetime
+from dateutil import parser
+from email.mime.text import MIMEText
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from openai import OpenAI
+
+# ── Flask Setup ─────────────────────────────────────────────────────────────
+app = Flask(__name__)
+CORS(app)
+app.logger.setLevel(logging.DEBUG)
+
+# ── OpenAI Client ────────────────────────────────────────────────────────────
+openai_api_key = os.getenv("OPENAI_API_KEY")
+if not openai_api_key:
+    raise RuntimeError("OPENAI_API_KEY environment variable is not set.")
+client = OpenAI(api_key=openai_api_key)
+
+# ── SMTP Setup ───────────────────────────────────────────────────────────────
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+SMTP_USERNAME = "kata.chatbot@gmail.com"
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
+if not SMTP_PASSWORD:
+    app.logger.warning("SMTP_PASSWORD is not set; emails may fail.")
+
+def send_email(html_body):
+    """Sends an HTML email containing the full submission and report."""
+    subject = "New KataChatBot Submission"
+    msg = MIMEText(html_body, 'html')
+    msg["Subject"] = subject
+    msg["From"] = SMTP_USERNAME
+    msg["To"] = SMTP_USERNAME
+
+    try:
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SMTP_USERNAME, SMTP_PASSWORD)
+            server.send_message(msg)
+        app.logger.info("✅ HTML email sent successfully.")
+    except Exception:
+        app.logger.error("❌ Email sending failed.", exc_info=True)
+
+def _t(lang, en, zh, tw):
+    """Helper function for language translations"""
+    if lang == "zh":
+        return zh
+    elif lang == "tw":
+        return tw
+    return en
+
 @app.route("/boss_analyze", methods=["POST"])
 def boss_analyze():
     try:
@@ -186,10 +243,5 @@ Requirements:
         app.logger.exception("Error in /boss_analyze")
         return jsonify({"error": str(e)}), 500
 
-def _t(lang, en, zh, tw):
-    """Helper function for language translations"""
-    if lang == "zh":
-        return zh
-    elif lang == "tw":
-        return tw
-    return en
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0")
