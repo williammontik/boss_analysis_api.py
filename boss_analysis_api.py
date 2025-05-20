@@ -29,7 +29,6 @@ if not openai_api_key:
 client = OpenAI(api_key=openai_api_key)
 
 def send_email(html_body: str):
-    """Send the HTML email to yourself."""
     msg = MIMEText(html_body, 'html')
     msg["Subject"] = "New Boss Submission"
     msg["From"]    = SMTP_USERNAME
@@ -47,7 +46,7 @@ def send_email(html_body: str):
 def boss_analyze():
     data = request.get_json(force=True)
     try:
-        # 1) Extract & strip inputs
+        # 1) Extract & strip
         name       = data.get("memberName","").strip()
         position   = data.get("position","").strip()
         department = data.get("department","").strip()
@@ -80,7 +79,7 @@ def boss_analyze():
         else:
             birthdate = parser.parse(data.get("dob",""), dayfirst=True)
         today = datetime.today()
-        age = today.year - birthdate.year - ((today.month,today.day)<(birthdate.month,birthdate.day))
+        age = today.year - birthdate.year - ((today.month,today.day) < (birthdate.month,birthdate.day))
 
         # 3) Generate random metrics
         def mk(title):
@@ -95,77 +94,94 @@ def boss_analyze():
             mk("Task Completion Reliability")
         ]
 
-        # 4) Build plain_report for screen (including footer)
+        # 4) Build plain_report for screen (no footer)
         icon = "📄"
         if lang == "zh":
-            heading      = f"{icon} AI-生成报告"
-            report_title = "工作绩效报告"
-            trend_title  = "📌 区域与全球趋势对比："
-            find_title   = "🔍 关键发现："
+            heading = f"{icon} AI-生成报告"
         elif lang == "tw":
-            heading      = f"{icon} AI-生成報告"
-            report_title = "工作績效報告"
-            trend_title  = "📌 區域與全球趨勢對比："
-            find_title   = "🔍 關鍵發現："
+            heading = f"{icon} AI-生成報告"
         else:
-            heading      = f"{icon} AI-Generated Report"
-            report_title = "Workplace Performance Report"
-            trend_title  = "📌 Comparison with Regional & Global Trends:"
-            find_title   = "🔍 Key Findings:"
+            heading = f"{icon} AI-Generated Report"
 
-        lines = [
-            heading, "",
-            report_title,
-            f"• 年龄：{age}" if lang.startswith("zh") else f"• Age: {age}",
-            f"• 职位：{position}" if lang.startswith("zh") else f"• Position: {position}",
-            f"• 部门：{department}" if lang.startswith("zh") else f"• Department: {department}",
-            f"• 工作经验：{experience} 年" if lang.startswith("zh") else f"• Experience: {experience} year(s)",
-            f"• 行业：{sector}" if lang.startswith("zh") else f"• Sector: {sector}",
-            f"• 国家：{country}" if lang.startswith("zh") else f"• Country: {country}",
-            f"• 主要挑战：{challenge}" if lang.startswith("zh") else f"• Main Challenge: {challenge}",
-            f"• 发展重点：{focus}" if lang.startswith("zh") else f"• Development Focus: {focus}",
-            "", 
-            "📊 职场指标：" if lang.startswith("zh") else "📊 Workplace Metrics:"
-        ]
+        lines = [heading, ""]
+        # Demographics
+        if lang == "zh":
+            lines += [
+                "工作绩效报告",
+                f"• 年龄：{age}",
+                f"• 职位：{position}",
+                f"• 部门：{department}",
+                f"• 工作经验：{experience} 年",
+                f"• 行业：{sector}",
+                f"• 国家：{country}",
+                f"• 主要挑战：{challenge}",
+                f"• 发展重点：{focus}",
+                "",
+                "📊 职场指标："
+            ]
+        elif lang == "tw":
+            lines += [
+                "工作績效報告",
+                f"• 年齡：{age}",
+                f"• 職位：{position}",
+                f"• 部門：{department}",
+                f"• 工作經驗：{experience} 年",
+                f"• 行業：{sector}",
+                f"• 國家：{country}",
+                f"• 主要挑戰：{challenge}",
+                f"• 發展重點：{focus}",
+                "",
+                "📊 職場指標："
+            ]
+        else:
+            lines += [
+                "Workplace Performance Report",
+                f"• Age: {age}",
+                f"• Position: {position}",
+                f"• Department: {department}",
+                f"• Experience: {experience} year(s)",
+                f"• Sector: {sector}",
+                f"• Country: {country}",
+                f"• Main Challenge: {challenge}",
+                f"• Development Focus: {focus}",
+                "",
+                "📊 Workplace Metrics:"
+            ]
+        # Metrics
         for m in metrics:
             a,b,c = m["values"]
             lines.append(f"• {m['title']}: Segment {a}%, Regional {b}%, Global {c}%")
-
-        lines += [
-            "",
-            trend_title,
-            (f"该指标在「{focus}」方面表现较强。" if lang.startswith("zh")
-                   else f"This segment shows relative strength in {focus.lower()} performance."),
-            (f"在「{focus}」方面可能存在一定差距，与区域和全球平均水平相比有中等差距。" if lang.startswith("zh")
-                   else f"There may be challenges around {focus.lower()}, with moderate gaps compared to regional and global averages."),
-            ("建议通过持续培训和辅导来缩小差距。" if lang.startswith("zh")
-                   else "Consistency, training, and mentorship are recommended to bridge performance gaps."),
-            "",
-            find_title,
-            ( "1. 任务执行可靠性高于所有基准。" if lang.startswith("zh")
-                   else "1. Task execution reliability is above average across all benchmarks."),
-            ( "2. 可增强沟通风格以改善跨团队协作。" if lang.startswith("zh")
-                   else "2. Communication style can be enhanced to improve cross-team alignment."),
-            ( "3. 在适当支持下具有强劲的成长潜力。" if lang.startswith("zh")
-                   else "3. Growth potential is strong with proper support.")
-        ]
-
-        # Footer for screen
-        lines += [
-            "",
-            "The insights in this report are generated by KataChat’s AI systems analyzing:",
-            "1. Our proprietary database of anonymized professional profiles across Singapore, Malaysia, and Taiwan",
-            "2. Aggregated global business benchmarks from trusted OpenAI research and leadership trend datasets",
-            "All data is processed through our AI models to identify statistically significant patterns while maintaining strict PDPA compliance. Sample sizes vary by analysis, with minimum thresholds of 1,000+ data points for management comparisons.",
-            "",
-            "PS: This report has also been sent to your email inbox and should arrive within 24 hours. If you'd like to discuss it further, feel free to reach out — we’re happy to arrange a 15-minute call at your convenience."
-        ]
+        # Comparison + findings
+        if lang.startswith("zh"):
+            lines += [
+                "",
+                "📌 区域与全球趋势对比：" if lang=="zh" else "📌 區域與全球趨勢對比：",
+                f"该指标在「{focus}」方面表现较强。",
+                f"在「{focus}」方面可能存在一定差距，与区域和全球平均水平相比有中等差距。",
+                "建议通过持续培训和辅导来缩小差距。",
+                "",
+                "🔍 关键发现：" if lang=="zh" else "🔍 關鍵發現：",
+                "1. 任务执行可靠性高于所有基准。",
+                "2. 可增强沟通风格以改善跨团队协作。",
+                "3. 在适当支持下具有强劲的成长潜力。"
+            ]
+        else:
+            lines += [
+                "",
+                "📌 Comparison with Regional & Global Trends:",
+                f"This segment shows relative strength in {focus.lower()} performance.",
+                f"There may be challenges around {focus.lower()}, with moderate gaps compared to regional and global averages.",
+                "Consistency, training, and mentorship are recommended to bridge performance gaps.",
+                "",
+                "🔍 Key Findings:",
+                "1. Task execution reliability is above average across all benchmarks.",
+                "2. Communication style can be enhanced to improve cross-team alignment.",
+                "3. Growth potential is strong with proper support."
+            ]
 
         plain_report = "\n".join(lines)
 
-        # 5) Build email HTML (with footer + charts). Do the newline→<br> replace outside the f-string:
-        safe_report = plain_report.replace("\n", "<br>")
-
+        # 5) Build email HTML (with footer only in email)
         footer_html = """
 <div style="background-color:#e6f7ff;color:#00529B;padding:15px;border-left:4px solid #00529B;margin:20px 0;">
   <strong>The insights in this report are generated by KataChat’s AI systems analyzing:</strong><br>
@@ -177,22 +193,6 @@ def boss_analyze():
   <strong>PS:</strong> This report has also been sent to your email inbox and should arrive within 24 hours. If you'd like to discuss it further, feel free to reach out — we’re happy to arrange a 15-minute call at your convenience.
 </p>
 """
-
-        charts_html = "<h2>📊 Charts</h2><div style='font-family:sans-serif;color:#333'>"
-        for m in metrics:
-            charts_html += f"<h3>{m['title']}</h3>"
-            for lbl,val in zip(m["labels"], m["values"]):
-                charts_html += f"""
-<div style="display:flex; align-items:center; margin-bottom:6px;">
-  <span style="width:100px;">{lbl}:</span>
-  <div style="flex:1; background:#e0e0e0; border-radius:4px; overflow:hidden; margin-right:8px;">
-    <div style="width:{val}%; background:#5E9CA0; height:12px;"></div>
-  </div>
-  <span>{val}%</span>
-</div>
-"""
-        charts_html += "</div>"
-
         html = f"""
 <html><body style="font-family:sans-serif;color:#333">
   <h2>🎯 Boss Submission Details:</h2>
@@ -211,10 +211,10 @@ def boss_analyze():
   </p>
   <hr style="border:0;border-top:1px solid #e0e0e0;margin:20px 0;">
   <section style="margin-bottom:20px;">
-    <div style="display:flex;align-items:center;margin-bottom:12px;">
-      <span style="font-size:28px;color:#5E9CA0;line-height:1;margin-right:8px;">📄</span>
-      <h3 style="font-size:24px;color:#5E9CA0;font-weight:bold;margin:0;">{heading.split(' ',1)[1]}</h3>
-    </div>
+    <h2 style="display:flex;align-items:center;font-size:22px;color:#5E9CA0;margin-bottom:12px;">
+      <span style="font-size:28px;line-height:1;margin-right:8px;">📄</span>
+      {report_heading}
+    </h2>
     <div style="
          background:#fafafa;
          border:1px solid #e0e0e0;
@@ -224,16 +224,15 @@ def boss_analyze():
          line-height:1.6;
          white-space:pre-wrap;
     ">
-      {safe_report}
+      {plain_report}
     </div>
   </section>
   {footer_html}
-  {charts_html}
 </body></html>
 """
         send_email(html)
 
-        # 6) Return JSON (plain_report) for screen display
+        # 6) Return only the plain report to the widget
         return jsonify({"metrics": metrics, "analysis": plain_report})
 
     except Exception as e:
