@@ -148,12 +148,11 @@ Wrap each paragraph in <p>...</p> tags.
 </p>
 """
 
-    # 8) Assemble full analysis HTML with two-line gap after global header
+    # 8) Assemble full analysis HTML with adjusted spacing
     analysis_html = (
         bar_html
       + report_html
-      + "<h2 class=\"sub\">🌐 Global Section Analytical Report</h2>\n"
-      + "<br>\n<br>\n"
+      + "<h2 class=\"sub\" style=\"margin: 2em 0;\">🌐 Global Section Analytical Report</h2>\n"
       + global_html
       + footer
     )
