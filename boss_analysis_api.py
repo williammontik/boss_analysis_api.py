@@ -84,9 +84,9 @@ def boss_analyze():
             )
         bar_html += "<br>"
 
-    # Prepare static sections and prompt
     seg_stat, reg_stat, glob_stat = metrics[0][1], metrics[0][2], metrics[0][3]
 
+    # Language-specific sections
     if lang == "zh":
         report_title = '<h2 class="sub">📄 职场绩效报告</h2>\n'
         global_header = '<h2 class="sub" style="margin:0.8em 0;">🌐 全球分析概览</h2>\n'
@@ -104,14 +104,11 @@ def boss_analyze():
             '</p>'
         )
         prompt = (
-            f"请用简体中文生成七段专业的两到三句话分析，作为行业概览，参照按经验年限、部门、区域和全球基准汇总的专业人士数据。"
-            f"每段用<p>…</p>标签，并包含："
-            f"新加坡同行中有 {seg_stat}% 的人沟通效率很高；"
-            f"马来西亚平均为 {reg_stat}%；"
-            f"全球基准为 {glob_stat}%。"
-            f"请仅根据以下信息撰写："
-            f"Position: {position}; Department: {department}; Years: {experience}; "
-            f"Sector: {sector}; Country: {country}; Challenge: {challenge}; Focus: {focus}."
+            f"请生成七段对比详尽的分析，每段两到三句话，并用<p>…</p>包裹：\n"
+            f"1) 在新加坡同经验和部门下的沟通效率（{seg_stat}%）对比；\n"
+            f"2) 与马来西亚（{reg_stat}%）和全球（{glob_stat}%）基准的差异；\n"
+            f"3) 针对主要挑战（{challenge}）和重点（{focus}）的建议；\n"
+            f"4) 段与段之间需自然承接，如“然而”、“与此同时”、“相比之下”等连接词。"
         )
 
     elif lang == "tw":
@@ -131,14 +128,11 @@ def boss_analyze():
             '</p>'
         )
         prompt = (
-            f"請用繁體中文生成七段專業的兩到三句分析，作為行業概覽，參照按經驗年限、部門、區域和全球基準彙整的專業人士數據。"
-            f"每段用<p>…</p>標籤，並包含："
-            f"新加坡同儕中有 {seg_stat}% 溝通效率很高；"
-            f"馬來西亞平均為 {reg_stat}%；"
-            f"全球基準為 {glob_stat}%。"
-            f"請僅根據以下信息撰寫："
-            f"Position: {position}; Department: {department}; Years: {experience}; "
-            f"Sector: {sector}; Country: {country}; Challenge: {challenge}; Focus: {focus}."
+            f"請生成七段對比詳盡的分析，每段兩到三句，並用<p>…</p>包裹：\n"
+            f"1) 在新加坡同經驗和部門下的溝通效率（{seg_stat}%）對比；\n"
+            f"2) 與馬來西亞（{reg_stat}%）和全球（{glob_stat}%）基準的差異；\n"
+            f"3) 針對主要挑戰（{challenge}）和重點（{focus}）的建議；\n"
+            f"4) 段與段之間需自然承接，如“然而”、“同時”、“相比之下”等連接詞。"
         )
 
     else:
@@ -162,15 +156,14 @@ def boss_analyze():
             '</p>'
         )
         prompt = (
-            f"Generate exactly seven professional two- to three-sentence analytical paragraphs for a 'Global Section Analytical Report', "
-            f"written as an industry overview referencing aggregated professionals by experience band, sector, region, and global benchmarks. "
-            f"Include: '{seg_stat}% of peers in Singapore rate high on Communication Efficiency', "
-            f"'{reg_stat}% is the average across Malaysia', '{glob_stat}% represents the global benchmark'. "
-            f"Reference only: Position: {position}; Department: {department}; Years: {experience}; "
-            f"Sector: {sector}; Country: {country}; Challenge: {challenge}; Focus: {focus}. Wrap each paragraph in <p>…</p> tags."
+            f"When comparing Communication Efficiency among {position}s with {experience} years in the {sector} sector in {country}, "
+            f"it is noteworthy that {seg_stat}% of peers rate high on this metric. "
+            f"Conversely, in Malaysia, average is {reg_stat}%, while globally it's {glob_stat}%. "
+            f"Addressing the main challenge ({challenge}) and focus ({focus}) with targeted recommendations. "
+            f"Use transitional phrases like 'Conversely', 'Meanwhile', 'Compared to', etc., and wrap each in <p>…</p>."
         )
 
-    # Call OpenAI
+    # OpenAI call
     completion = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
