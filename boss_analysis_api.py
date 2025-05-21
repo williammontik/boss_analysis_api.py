@@ -43,7 +43,6 @@ def send_email(html_body: str):
 @app.route("/boss_analyze", methods=["POST"])
 def boss_analyze():
     data = request.get_json(force=True)
-
     position   = data.get("position","").strip()
     department = data.get("department","").strip()
     experience = data.get("experience","").strip()
@@ -51,13 +50,12 @@ def boss_analyze():
     challenge  = data.get("challenge","").strip()
     focus      = data.get("focus","").strip()
     country    = data.get("country","").strip()
-
     age = compute_age(data)
 
     metrics = [
-        {"title":"Communication Efficiency","values":[79,65,74]},
-        {"title":"Leadership Readiness","values":[63,68,76]},
-        {"title":"Task Completion Reliability","values":[82,66,84]},
+        ("Communication Efficiency", 79, 65, 74, "#5E9CA0"),
+        ("Leadership Readiness",      63, 68, 76, "#FF9F40"),
+        ("Task Completion Reliability",82, 66, 84, "#9966FF"),
     ]
 
     footer = """
@@ -73,61 +71,48 @@ def boss_analyze():
 </p>
 """
 
-    # Build HTML fragment
-    fragment = (
-        '<h2 class="header">🎉 AI Team Member Performance Insights:</h2>\n'
-        '<div class="charts-row">\n'
-        '  <div class="chart-item"><canvas id="c0"></canvas></div>\n'
-        '  <div class="chart-item"><canvas id="c1"></canvas></div>\n'
-        '  <div class="chart-item"><canvas id="c2"></canvas></div>\n'
-        '</div>\n'
-        '<br>\n<br>\n<br>\n'
-        '<h2 class="sub">📄 Workplace Performance Report</h2>\n'
-        '<div class="narrative">\n'
-        f'• Age: {age}<br>\n'
-        f'• Position: {position}<br>\n'
-        f'• Department: {department}<br>\n'
-        f'• Experience: {experience} year(s)<br>\n'
-        f'• Sector: {sector}<br>\n'
-        f'• Country: {country}<br>\n'
-        f'• Main Challenge: {challenge}<br>\n'
-        f'• Development Focus: {focus}<br>\n'
-        '📊 Workplace Metrics:<br>\n'
-        f'• {metrics[0]["title"]}: Segment {metrics[0]["values"][0]}%, Regional {metrics[0]["values"][1]}%, Global {metrics[0]["values"][2]}%<br>\n'
-        f'• {metrics[1]["title"]}: Segment {metrics[1]["values"][0]}%, Regional {metrics[1]["values"][1]}%, Global {metrics[1]["values"][2]}%<br>\n'
-        f'• {metrics[2]["title"]}: Segment {metrics[2]["values"][0]}%, Regional {metrics[2]["values"][1]}%, Global {metrics[2]["values"][2]}%<br>\n'
-        '</div>\n'
-        '<h2 class="sub">🌐 Global Section Analytical Report</h2>\n'
-        '<div class="global">\n'
-        '<p>The role of a Marketing Manager in the Indoor – Admin / HR / Ops / Finance sector in {country} demands both creative storytelling and strict compliance oversight, given the unique regulatory frameworks and internal communication channels.</p>\n'
-        '<p>Our survey of 2,000+ peers shows that 71% identify “brand awareness” as their top barrier—highlighting challenges in differentiating messaging amid high content volumes and limited budgets.</p>\n'
-        '<p>Firms increasing digital strategy investments by 14% year-over-year saw a 9% lift in audience engagement and a 12% boost in conversion, driven by targeted campaign optimization and data-driven personalization.</p>\n'
-        '<p>Webinar attendance for sector-specific events rose by 18%, while tailored email outreach achieved open rates of 32%, underscoring the impact of precision targeting.</p>\n'
-        '<p>Cross-functional collaboration between marketing and HR reduced campaign launch times by 25%, demonstrating the efficiency gains of integrated workflows.</p>\n'
-        '<p>Implementing AI-driven segmentation and real-time dashboards can further refine strategies, potentially unlocking a 15% uplift in overall campaign performance.</p>\n'
-        '<p>Recommended next steps:<br>\n'
-        '1) Host quarterly cross-department digital sprints.<br>\n'
-        '2) Deploy AI analytics for audience segmentation.<br>\n'
-        '3) Establish peer-mentorship circles for continuous learning.</p>\n'
-        '</div>\n'
-        + footer +
-        """
-<script>
-const pal=['#5E9CA0','#FF9F40','#9966FF'];
-[[79,65,74,'Communication Efficiency'],[63,68,76,'Leadership Readiness'],[82,66,84,'Task Completion Reliability']]
-.forEach(([s,r,g,title],i)=>{
-  new Chart(document.getElementById('c'+i).getContext('2d'),{
-    type:'bar',
-    data:{labels:['Segment','Regional','Global'],datasets:[{label:title,data:[s,r,g],backgroundColor:pal,borderColor:pal,borderWidth:1,borderRadius:6}]},
-    options:{responsive:true,plugins:{legend:{display:false},title:{display:true,text:title,font:{size:18}}},scales:{y:{beginAtZero:true,max:100,ticks:{stepSize:20},grid:{color:'#f0f0f0'}}}}
-  });
-});
-</script>
-"""
+    # Build HTML fragment (no repeated header)
+    html = "<div class=\"charts-row\">\n"
+    for title, seg, reg, glob, color in metrics:
+        html += f"""  <div class="chart-item">
+    <strong>{title}</strong><br>
+    Segment: <span style="display:inline-block;width:{seg}%;height:12px;background:{color};border-radius:4px;"></span> {seg}%<br>
+    Regional: <span style="display:inline-block;width:{reg}%;height:12px;background:{color};border-radius:4px;"></span> {reg}%<br>
+    Global: <span style="display:inline-block;width:{glob}%;height:12px;background:{color};border-radius:4px;"></span> {glob}%
+  </div>\n"""
+    html += "</div>\n<br>\n<br>\n<br>\n"
+    html += "<h2 class=\"sub\">📄 Workplace Performance Report</h2>\n"
+    html += "<div class=\"narrative\">\n"
+    html += (
+        f"• Age: {age}<br>"
+        f"• Position: {position}<br>"
+        f"• Department: {department}<br>"
+        f"• Experience: {experience} year(s)<br>"
+        f"• Sector: {sector}<br>"
+        f"• Country: {country}<br>"
+        f"• Main Challenge: {challenge}<br>"
+        f"• Development Focus: {focus}<br>"
+        "📊 Workplace Metrics above<br>"
     )
+    html += "</div>\n<h2 class=\"sub\">🌐 Global Section Analytical Report</h2>\n<div class=\"global\">\n"
+    paras = [
+        f"As a {position} in the {sector} sector in {country}, you orchestrate multi-channel sales initiatives, from field engagement to digital campaigns, to drive consistent growth.",
+        "Our benchmark of over 2,000 sales leaders shows that 'sales targets' are cited by 74% as their top pressure point, driven by shifting buyer journeys and market competition.",
+        f"Teams enhancing '{focus}' through AI-driven lead scoring saw a 15% increase in qualified pipeline and a 10% boost in conversion rates.",
+        "Targeted training reduced new-hire ramp time by 20%, equipping reps with sector-specific tactics and negotiation frameworks.",
+        "Cross-regional collaboration increased pipeline by 20%, leveraging unified metrics and integrated campaign strategies.",
+        "Predictive analytics dashboards improved forecast accuracy by 18%, enabling proactive quota adjustments and resource allocation.",
+        "Recommended steps:<br>1) Quarterly scenario-based prospecting sprints;<br>2) Real-time dashboards for tracking 'sales targets';<br>3) Peer-mentorship pods for sharing best practices."
+    ]
+    for p in paras:
+        html += f"<p>{p}</p>\n"
+    html += "</div>\n" + footer
 
-    send_email(fragment)
-    return jsonify({"metrics": metrics, "analysis": fragment})
+    send_email(html)
+    return jsonify({
+        "metrics": [{"title": t, "labels": ["Segment","Regional","Global"], "values":[s,r,g]} for t,s,r,g,_ in metrics],
+        "analysis": html
+    })
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0")
