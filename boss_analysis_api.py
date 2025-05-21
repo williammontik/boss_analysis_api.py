@@ -44,28 +44,26 @@ def send_email(html_body: str):
 @app.route("/boss_analyze", methods=["POST"])
 def boss_analyze():
     data = request.get_json(force=True)
-
     # Extract fields
-    position   = data.get("position", "").strip()
-    department = data.get("department", "").strip()
-    experience = data.get("experience", "").strip()
-    sector     = data.get("sector", "").strip()
-    challenge  = data.get("challenge", "").strip()
-    focus      = data.get("focus", "").strip()
-    country    = data.get("country", "").strip()
+    position   = data.get("position","").strip()
+    department = data.get("department","").strip()
+    experience = data.get("experience","").strip()
+    sector     = data.get("sector","").strip()
+    challenge  = data.get("challenge","").strip()
+    focus      = data.get("focus","").strip()
+    country    = data.get("country","").strip()
 
     age = compute_age(data)
 
-    # Fixed metrics
+    # Fixed metrics matching the approved numbers
     metrics = [
         {"title":"Communication Efficiency","labels":["Segment","Regional","Global"],"values":[79,65,74]},
         {"title":"Leadership Readiness","labels":["Segment","Regional","Global"],"values":[63,68,76]},
         {"title":"Task Completion Reliability","labels":["Segment","Regional","Global"],"values":[82,66,84]},
     ]
 
-    # Build the widget HTML up to before the <script> tag
-    analysis_html = f"""
-<h2 class="header">🎉 AI Team Member Performance Insights:</h2>
+    # Build the widget fragment with minimal spacing
+    analysis_html = f"""<h2 class="header">🎉 AI Team Member Performance Insights:</h2>
 <div class="charts-row">
   <div class="chart-item"><canvas id="c0"></canvas></div>
   <div class="chart-item"><canvas id="c1"></canvas></div>
@@ -73,47 +71,41 @@ def boss_analyze():
 </div>
 <h2 class="sub">📄 Workplace Performance Report</h2>
 <div class="narrative">
-• Age: {age}  
-• Position: {position}  
-• Department: {department}  
-• Experience: {experience} year(s)  
-• Sector: {sector}  
-• Country: {country}  
-• Main Challenge: {challenge}  
-• Development Focus: {focus}  
-
-📊 Workplace Metrics:  
-• Communication Efficiency: Segment 79%, Regional 65%, Global 74%  
-• Leadership Readiness: Segment 63%, Regional 68%, Global 76%  
-• Task Completion Reliability: Segment 82%, Regional 66%, Global 84%  
+• Age: {age}<br>
+• Position: {position}<br>
+• Department: {department}<br>
+• Experience: {experience} year(s)<br>
+• Sector: {sector}<br>
+• Country: {country}<br>
+• Main Challenge: {challenge}<br>
+• Development Focus: {focus}<br>
+📊 Workplace Metrics:<br>
+• Communication Efficiency: Segment 79%, Regional 65%, Global 74%<br>
+• Leadership Readiness: Segment 63%, Regional 68%, Global 76%<br>
+• Task Completion Reliability: Segment 82%, Regional 66%, Global 84%<br>
 </div>
 <h2 class="sub">🌐 Global Section Analytical Report</h2>
 <div class="global">
-  <p>Our analysis of more than 2,500 project managers aged {age} across Singapore, Malaysia, and Taiwan reveals that resource allocation remains the most consistent challenge, with 72% of respondents highlighting it as a critical roadblock.</p>
-  <p>Deep dives into your focus area—{focus}—show organizations boosting risk-management spend by 15% year-over-year, with predictive analytics and automated contingency triggers reducing schedule slippage by 12% and increasing on-budget delivery by 9%.</p>
-  <p>Looking toward the next fiscal year, teams embedding advanced risk governance are projected to see a 20% uplift in delivery success and an 18% improvement in stakeholder satisfaction scores. We recommend:<br>
-  1) Conduct quarterly risk audits with resource utilization benchmarks.<br>
-  2) Embed scenario-based risk workshops into Agile ceremonies.<br>
-  3) Deploy real-time resource-tracking dashboards with automated alerts.</p>
+<p>Our analysis of more than 2,500 project managers aged {age} across Singapore, Malaysia, and Taiwan reveals that resource allocation remains the most consistent challenge, with 72% highlighting it as a critical roadblock.</p>
+<p>Deep dives into your focus area—{focus}—show organizations boosting risk-management spend by 15% year-over-year, with predictive analytics and automated contingency triggers reducing schedule slippage by 12% and increasing on-budget delivery by 9%.</p>
+<p>Looking ahead, teams embedding advanced risk governance are projected to see a 20% uplift in delivery success and an 18% improvement in stakeholder satisfaction. We recommend:<br>
+1) Conduct quarterly risk audits with resource utilization benchmarks.<br>
+2) Embed scenario-based risk workshops into Agile ceremonies.<br>
+3) Deploy real-time resource-tracking dashboards with automated alerts.</p>
 </div>
-"""
-
-    # Append the <script> block as a normal (non-f) triple-quoted string
-    analysis_html += """
 <script>
-  const pal=['#5E9CA0','#FF9F40','#9966FF'];
-  [[79,65,74,'Communication Efficiency'],[63,68,76,'Leadership Readiness'],[82,66,84,'Task Completion Reliability']]
-  .forEach(([s,r,g,title],i) => {
-    new Chart(document.getElementById('c'+i).getContext('2d'), {
-      type:'bar',
-      data:{ labels:['Segment','Regional','Global'], datasets:[{ label:title, data:[s,r,g], backgroundColor:pal, borderColor:pal, borderWidth:1, borderRadius:6 }] },
-      options:{ responsive:true, plugins:{ legend:{display:false}, title:{display:true,text:title,font:{size:18}} }, scales:{ y:{ beginAtZero:true, max:100, ticks:{ stepSize:20 }, grid:{ color:'#f0f0f0' } } } }
-    });
+const pal=['#5E9CA0','#FF9F40','#9966FF'];
+[[79,65,74,'Communication Efficiency'],[63,68,76,'Leadership Readiness'],[82,66,84,'Task Completion Reliability']]
+.forEach(([s,r,g,title],i) => {
+  new Chart(document.getElementById('c'+i).getContext('2d'), {
+    type:'bar',
+    data:{ labels:['Segment','Regional','Global'], datasets:[{ label:title, data:[s,r,g], backgroundColor:pal, borderColor:pal, borderWidth:1, borderRadius:6 }] },
+    options:{ responsive:true, plugins:{ legend:{display:false}, title:{display:true,text:title,font:{size:18}}}, scales:{ y:{ beginAtZero:true, max:100, ticks:{ stepSize:20 }, grid:{ color:'#f0f0f0'} } } }
   });
-</script>
-"""
+});
+</script>"""
 
-    # Optionally send email
+    # Optionally email the HTML
     # send_email(analysis_html)
 
     return jsonify({
