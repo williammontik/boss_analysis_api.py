@@ -27,7 +27,7 @@ if not SMTP_PASSWORD:
 
 def compute_age(data):
     """Compute age from DOB fields or freeform string."""
-    d = data.get("dob_day"); m = data.get("dob_month"); y = data.get("dob_year")
+    d, m, y = data.get("dob_day"), data.get("dob_month"), data.get("dob_year")
     try:
         if d and m and y:
             month = int(m) if m.isdigit() else datetime.strptime(m, "%B").month
@@ -53,6 +53,7 @@ def send_email(html_body: str):
 @app.route("/boss_analyze", methods=["POST"])
 def boss_analyze():
     data = request.get_json(force=True)
+
     # 1) Extract inputs
     position   = data.get("position","").strip()
     department = data.get("department","").strip()
@@ -95,9 +96,11 @@ def boss_analyze():
         f"• Development Focus: {focus}<br>"
     )
 
-    # 5) Dynamically generate the Global Section via OpenAI
+    # 5) Dynamically generate the Global Section via OpenAI with regional & global comparisons
     prompt = f"""
-Generate exactly seven professional two- to three-sentence analytical paragraphs for a "🌐 Global Section Analytical Report" based on these details:
+Generate exactly seven professional two- to three-sentence analytical paragraphs for a "🌐 Global Section Analytical Report", written as an industry overview referencing aggregated professionals by experience band, sector, region, and global benchmarks. Include explicit comparisons of the key metrics and practices across Singapore, Malaysia, Taiwan, and global averages. Do NOT mention or personalize a single person.
+
+Use only these details:
 - Position: {position}
 - Department: {department}
 - Years of Experience: {experience}
@@ -106,12 +109,12 @@ Generate exactly seven professional two- to three-sentence analytical paragraphs
 - Main Challenge: {challenge}
 - Development Focus: {focus}
 
-Use third-person, data-informed tone. Wrap each paragraph in <p>...</p> tags.
+Wrap each paragraph in <p>...</p> tags.
 """
     completion = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
-            {"role": "system", "content": "You are an expert business analyst with deep domain knowledge."},
+            {"role": "system", "content": "You are an expert business analyst with deep domain knowledge and aware of regional and global benchmarks."},
             {"role": "user",   "content": prompt}
         ],
         temperature=0.7
@@ -136,9 +139,9 @@ Use third-person, data-informed tone. Wrap each paragraph in <p>...</p> tags.
     analysis_html = (
         bar_html
         + report_html
-        + "<br>\n<br>\n"  # two-line gap before global section
+        + "<br>\n<br>\n"
         + "<h2 class=\"sub\">🌐 Global Section Analytical Report</h2>\n"
-        + "<br>\n<br>\n"  # two-line gap after header
+        + "<br>\n<br>\n"
         + global_html
         + footer
     )
