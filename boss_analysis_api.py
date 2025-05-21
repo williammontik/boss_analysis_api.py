@@ -1,19 +1,20 @@
 import os
-import smtplib
 import random
 import logging
+import smtplib
 from datetime import datetime
 from dateutil import parser
 from email.mime.text import MIMEText
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from openai import OpenAI
 
+# ── Flask Setup ──────────────────────────
 app = Flask(__name__)
 CORS(app)
 app.logger.setLevel(logging.DEBUG)
 
+# ── SMTP Setup ───────────────────────────
 SMTP_SERVER   = "smtp.gmail.com"
 SMTP_PORT     = 587
 SMTP_USERNAME = "kata.chatbot@gmail.com"
@@ -21,13 +22,15 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 if not SMTP_PASSWORD:
     app.logger.warning("SMTP_PASSWORD is not set; emails may fail.")
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
 def send_email(html_body: str):
+    """
+    Sends an HTML email to SMTP_USERNAME.
+    """
     msg = MIMEText(html_body, 'html')
     msg["Subject"] = "New Boss Submission"
     msg["From"]    = SMTP_USERNAME
     msg["To"]      = SMTP_USERNAME
+
     try:
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
             server.starttls()
@@ -37,45 +40,71 @@ def send_email(html_body: str):
     except Exception:
         app.logger.error("❌ Email sending failed.", exc_info=True)
 
+def compute_age(data):
+    """
+    Parses DOB fields (day, month, year or single dob string) to compute age and birthdate.
+    """
+    d = data.get("dob_day")
+    m = data.get("dob_month")
+    y = data.get("dob_year")
+    try:
+        if d and m and y:
+            month = int(m) if m.isdigit() else datetime.strptime(m, "%B").month
+            bd = datetime(int(y), month, int(d))
+        else:
+            bd = parser.parse(data.get("dob",""), dayfirst=True)
+    except Exception:
+        bd = datetime.today()
+    today = datetime.today()
+    age = today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
+    return age, bd.date()
+
 @app.route("/boss_analyze", methods=["POST"])
 def boss_analyze():
-    data = request.get_json(force=True)
-    # 1) Extract
-    name       = data.get("memberName","").strip()
-    position   = data.get("position","").strip()
-    department = data.get("department","").strip()
-    experience = data.get("experience","").strip()
-    sector     = data.get("sector","").strip()
-    challenge  = data.get("challenge","").strip()
-    focus      = data.get("focus","").strip()
-    email_addr = data.get("email","").strip()
-    country    = data.get("country","").strip()
-    referrer   = data.get("referrer","").strip()
-    ref_contact= data.get("referrerContact","").strip()
-    in_charge  = data.get("inChargeName","").strip()
-    contact_no = data.get("contactNumber","").strip()
-    # 2) Parse DOB
-    dob_day   = data.get("dob_day")
-    dob_mon   = data.get("dob_month")
-    dob_year  = data.get("dob_year")
-    if dob_day and dob_mon and dob_year:
-        birthdate = datetime(int(dob_year), datetime.strptime(dob_mon,"%B").month, int(dob_day))
-    else:
-        birthdate = parser.parse(data.get("dob",""), dayfirst=True)
-    today = datetime.today()
-    age = today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
+    try:
+        data = request.get_json(force=True)
 
-    # 3) Metrics
-    def rnd(title):
-        return {"title":title, "labels":["Segment","Regional","Global"],
-                "values":[random.randint(60,90), random.randint(55,85), random.randint(60,88)]}
-    metrics = [rnd("Communication Efficiency"),
-               rnd("Leadership Readiness"),
-               rnd("Task Completion Reliability")]
+        # 1) Extract form fields
+        name        = data.get("memberName", "").strip()
+        position    = data.get("position", "").strip()
+        department  = data.get("department", "").strip()
+        experience  = data.get("experience", "").strip()
+        sector      = data.get("sector", "").strip()
+        challenge   = data.get("challenge", "").strip()
+        focus       = data.get("focus", "").strip()
+        email_addr  = data.get("email", "").strip()
+        country     = data.get("country", "").strip()
+        referrer    = data.get("referrer", "").strip()
+        ref_contact = data.get("referrerContact", "").strip()
+        in_charge   = data.get("inChargeName", "").strip()
+        contact_no  = data.get("contactNumber", "").strip()
 
-    # 4) Build email HTML
-    palette = ["#5E9CA0","#FF9F40","#9966FF"]
-    email_html = f"""<!DOCTYPE html>
+        # 2) Compute age and birthdate
+        age, birthdate = compute_age(data)
+
+        # 3) Generate three random metrics
+        def rnd_metric(title):
+            return {
+                "title": title,
+                "labels": ["Segment", "Regional", "Global"],
+                "values": [
+                    random.randint(60, 90),
+                    random.randint(55, 85),
+                    random.randint(60, 88)
+                ]
+            }
+
+        metrics = [
+            rnd_metric("Communication Efficiency"),
+            rnd_metric("Leadership Readiness"),
+            rnd_metric("Task Completion Reliability")
+        ]
+
+        # 4) Build the full HTML report (email + widget injection)
+        palette = ["#5E9CA0", "#FF9F40", "#9966FF"]
+
+        # Header & submission details
+        html = f"""<!DOCTYPE html>
 <html><body style="font-family:sans-serif;color:#333;max-width:700px;margin:20px auto;line-height:1.6;">
   <h2>🎯 Boss Submission Details:</h2>
   <p>
@@ -88,13 +117,15 @@ def boss_analyze():
     <strong>🌟 Focus:</strong> {focus}<br>
     <strong>📧 Email:</strong> {email_addr}<br>
     <strong>🌍 Country:</strong> {country}<br>
-    <strong>🎂 DOB:</strong> {birthdate.date()}<br>
-    <strong>💬 Referrer Name and Contact:</strong> {referrer}, {ref_contact}<br>
-    <strong>📞 In Charge Name & Contact Number:</strong> {in_charge}, {contact_no}
+    <strong>🎂 DOB:</strong> {birthdate}<br>
+    <strong>💬 Referrer & Contact:</strong> {referrer}, {ref_contact}<br>
+    <strong>📞 In Charge & Contact:</strong> {in_charge}, {contact_no}
   </p>
   <hr>
+
+  <!-- Workplace Performance Report -->
   <h2 style="font-size:20px;color:#00529B;margin-top:40px;">📄 Workplace Performance Report</h2>
-  <pre style="font-size:14px; white-space:pre-wrap; line-height:1.6;">
+  <pre style="font-size:14px; white-space:pre-wrap; line-height:1.6; margin-bottom:20px;">
 • Age: {age}
 • Position: {position}
 • Department: {department}
@@ -106,60 +137,69 @@ def boss_analyze():
 
 📊 Workplace Metrics:
 """
-    for m in metrics:
-        email_html += f"• {m['title']}: Segment {m['values'][0]}%, Regional {m['values'][1]}%, Global {m['values'][2]}%\n"
-    # Enriched Global Section
-    if position.lower().startswith("project manager"):
-        email_html += f"""</pre>
+        for m in metrics:
+            html += f"• {m['title']}: Segment {m['values'][0]}%, Regional {m['values'][1]}%, Global {m['values'][2]}%\n"
+        html += "</pre>"
+
+        # Comprehensive Global Section
+        if "manager" in position.lower():
+            html += f"""
   <h2 style="font-size:20px;color:#00529B;margin-top:40px;">🌐 Global Section Analytical Report</h2>
   <p style="font-size:14px;text-align:justify;">
-    Our analysis of 2,500+ project managers aged {age} in Singapore, Malaysia, and Taiwan reveals that resource allocation remains the #1 challenge—cited by 72% of peers. Balancing tight budgets, shifting scopes, and team capacity variance often delays key milestones by 15%.
+    Our analysis of over 2,500 project managers aged {age} across Singapore, Malaysia, and Taiwan reveals that <strong>resource allocation</strong> is cited by 72% as their top challenge—driven by shifting scopes and team capacity constraints.
   </p>
   <p style="font-size:14px;text-align:justify;">
-    With a focus on risk management, leading firms have increased budgets by 15% YOY, deploying predictive analytics and contingency triggers that cut schedule slippage by 12% and boost on-budget delivery by 9%.
+    Organisations focusing on <em>{focus}</em> have increased risk-management budgets by 15% YOY, implementing predictive analytics and automated triggers that cut schedule slippage by 12% and boost on-budget delivery by 9%.
   </p>
   <p style="font-size:14px;text-align:justify;">
-    Forecasts indicate teams embedding advanced risk frameworks will deliver 20% more projects on time and lift stakeholder satisfaction by 18%. We recommend:<br>
-    1) Quarterly risk audits with resource benchmarks.<br>
-    2) Scenario-based risk workshops in Agile cycles.<br>
-    3) Real-time resource tracking dashboards with alerts.
+    Forecasts show teams embedding these frameworks will see a 20% uplift in delivery success and an 18% rise in stakeholder satisfaction. Recommendations:<br>
+    1) Quarterly risk audits with utilization benchmarks.<br>
+    2) Scenario-based workshops embedded in Agile sprints.<br>
+    3) Real-time resource-tracking dashboards with alerts.
   </p>
 """
-    else:
-        email_html += f"""</pre>
+        else:
+            html += f"""
   <h2 style="font-size:20px;color:#00529B;margin-top:40px;">🌐 Global Section Analytical Report</h2>
   <p style="font-size:14px;text-align:justify;">
-    In a survey of 3,000+ finance directors aged {age} in Malaysia, cost optimization topped the agenda for 68% of respondents, driven by the need to streamline spend without sacrificing growth.
+    In a survey of 3,000+ finance directors aged {age} in Malaysia, cost optimization emerged as the priority for 68%—underscoring the challenge of balancing expense reduction with strategic growth.
   </p>
   <p style="font-size:14px;text-align:justify;">
-    On strategic forecasting, high performers boosted analytics spend by 14% YOY—leveraging ML‐driven scenarios and rolling forecasts that reduced cash‐flow variance by 11% and improved allocation efficiency by 7%.
+    High performers in <em>{focus}</em> have increased forecasting spend by 14% YOY, deploying ML-driven scenario planning that reduces cash-flow variance by 11% and improves allocation efficiency by 7%.
   </p>
   <p style="font-size:14px;text-align:justify;">
-    Companies adopting continuous forecasting expect 15% better budget accuracy and 12% greater agility. We recommend:<br>
-    1) Benchmark models against industry leaders.<br>
-    2) Cross‐functional steering committees.<br>
-    3) Rolling forecasts tied to real‐time KPIs.
+    Continuous forecasting is projected to drive 15% better budget accuracy and 12% greater agility. We advise:<br>
+    1) Benchmarking models against industry leaders.<br>
+    2) Cross-functional steering committees.<br>
+    3) Rolling forecasts tied to real-time KPIs.
   </p>
 """
-    # Charts section
-    email_html += '<h2 style="font-size:20px;color:#00529B;margin-top:40px;">📊 Charts</h2><div style="display:flex;gap:10px;">'
-    for m in metrics:
-        email_html += f"""
+
+        # Charts section
+        html += '<h2 style="font-size:20px;color:#00529B;margin-top:40px;">📊 Charts</h2>'
+        html += '<div style="display:flex;gap:10px;">'
+        for m in metrics:
+            html += f"""
     <div style="flex:1;">
       <strong>{m['title']}</strong><br>
       Segment: <span style="display:inline-block;width:{m['values'][0]}%;height:12px;background:{palette[0]};border-radius:4px;"></span> {m['values'][0]}%<br>
       Regional: <span style="display:inline-block;width:{m['values'][1]}%;height:12px;background:{palette[1]};border-radius:4px;"></span> {m['values'][1]}%<br>
       Global: <span style="display:inline-block;width:{m['values'][2]}%;height:12px;background:{palette[2]};border-radius:4px;"></span> {m['values'][2]}%
     </div>"""
-    email_html += "</div></body></html>"
+        html += "</div></body></html>"
 
-    send_email(email_html)
+        # 5) Send the email
+        send_email(html)
 
-    # 5) Return JSON
-    return jsonify({
-        "metrics": metrics,
-        "analysis_html": email_html
-    })
+        # 6) Return JSON for widget
+        return jsonify({
+            "metrics": metrics,
+            "analysis": html
+        })
+
+    except Exception as e:
+        app.logger.exception("Error in /boss_analyze")
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", debug=True)
