@@ -44,6 +44,7 @@ def send_email(html_body: str):
 @app.route("/boss_analyze", methods=["POST"])
 def boss_analyze():
     data = request.get_json(force=True)
+
     # Extract fields
     position   = data.get("position","").strip()
     department = data.get("department","").strip()
@@ -55,15 +56,15 @@ def boss_analyze():
 
     age = compute_age(data)
 
-    # Fixed metrics matching the approved numbers
     metrics = [
         {"title":"Communication Efficiency","labels":["Segment","Regional","Global"],"values":[79,65,74]},
         {"title":"Leadership Readiness","labels":["Segment","Regional","Global"],"values":[63,68,76]},
         {"title":"Task Completion Reliability","labels":["Segment","Regional","Global"],"values":[82,66,84]},
     ]
 
-    # Build the widget fragment with minimal spacing
-    analysis_html = f"""<h2 class="header">🎉 AI Team Member Performance Insights:</h2>
+    # Build HTML fragment up through the global section
+    analysis_html = f"""
+<h2 class="header">🎉 AI Team Member Performance Insights:</h2>
 <div class="charts-row">
   <div class="chart-item"><canvas id="c0"></canvas></div>
   <div class="chart-item"><canvas id="c1"></canvas></div>
@@ -93,6 +94,10 @@ def boss_analyze():
 2) Embed scenario-based risk workshops into Agile ceremonies.<br>
 3) Deploy real-time resource-tracking dashboards with automated alerts.</p>
 </div>
+"""
+
+    # Append the <script> block separately (no f-string)
+    analysis_html += """
 <script>
 const pal=['#5E9CA0','#FF9F40','#9966FF'];
 [[79,65,74,'Communication Efficiency'],[63,68,76,'Leadership Readiness'],[82,66,84,'Task Completion Reliability']]
@@ -103,9 +108,10 @@ const pal=['#5E9CA0','#FF9F40','#9966FF'];
     options:{ responsive:true, plugins:{ legend:{display:false}, title:{display:true,text:title,font:{size:18}}}, scales:{ y:{ beginAtZero:true, max:100, ticks:{ stepSize:20 }, grid:{ color:'#f0f0f0'} } } }
   });
 });
-</script>"""
+</script>
+"""
 
-    # Optionally email the HTML
+    # Optionally send email here
     # send_email(analysis_html)
 
     return jsonify({
