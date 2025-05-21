@@ -86,10 +86,10 @@ def boss_analyze():
             )
         bar_html += "<br>"
 
-    # 4) 📄 Workplace Performance Report
+    # 4) 📄 Workplace Performance Report (left-aligned, default site font/size)
     report_html = (
         "<br>\n"
-      + "<h2 class=\"sub\">📄 Workplace Performance Report</h2>\n"
+      + '<h2 class="sub">📄 Workplace Performance Report</h2>\n'
       + f"• Age: {age}<br>"
       + f"• Position: {position}<br>"
       + f"• Department: {department}<br>"
@@ -144,14 +144,13 @@ Wrap each paragraph in <p>...</p> tags.
 </p>
 """
 
-    # 8) Assemble full analysis HTML with CSS margins on the Global header
+    # 8) Assemble full analysis HTML with CSS margins on global header
     analysis_html = (
         bar_html
       + report_html
       + (
           '<h2 class="sub" '
-          'style="text-align:center; margin-top:0.8em; margin-bottom:0.8em; '
-                'font-size:24px;">'
+          'style="margin-top:0.8em; margin-bottom:0.8em;">'
           '🌐 Global Section Analytical Report'
           '</h2>\n'
         )
