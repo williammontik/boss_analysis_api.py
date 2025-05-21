@@ -56,15 +56,15 @@ def boss_analyze():
 
     age = compute_age(data)
 
+    # Fixed metrics
     metrics = [
         {"title":"Communication Efficiency","labels":["Segment","Regional","Global"],"values":[79,65,74]},
         {"title":"Leadership Readiness","labels":["Segment","Regional","Global"],"values":[63,68,76]},
         {"title":"Task Completion Reliability","labels":["Segment","Regional","Global"],"values":[82,66,84]},
     ]
 
-    # Build HTML fragment up through the global section
-    analysis_html = f"""
-<h2 class="header">🎉 AI Team Member Performance Insights:</h2>
+    # Build widget fragment
+    analysis_html = f"""<h2 class="header">🎉 AI Team Member Performance Insights:</h2>
 <div class="charts-row">
   <div class="chart-item"><canvas id="c0"></canvas></div>
   <div class="chart-item"><canvas id="c1"></canvas></div>
@@ -87,16 +87,18 @@ def boss_analyze():
 </div>
 <h2 class="sub">🌐 Global Section Analytical Report</h2>
 <div class="global">
-<p>Our analysis of more than 2,500 project managers aged {age} across Singapore, Malaysia, and Taiwan reveals that resource allocation remains the most consistent challenge, with 72% highlighting it as a critical roadblock.</p>
-<p>Deep dives into your focus area—{focus}—show organizations boosting risk-management spend by 15% year-over-year, with predictive analytics and automated contingency triggers reducing schedule slippage by 12% and increasing on-budget delivery by 9%.</p>
-<p>Looking ahead, teams embedding advanced risk governance are projected to see a 20% uplift in delivery success and an 18% improvement in stakeholder satisfaction. We recommend:<br>
-1) Conduct quarterly risk audits with resource utilization benchmarks.<br>
-2) Embed scenario-based risk workshops into Agile ceremonies.<br>
-3) Deploy real-time resource-tracking dashboards with automated alerts.</p>
-</div>
-"""
+  <p>In a survey of over 2,000 {position}s across {country}, “{challenge}” was cited by 71% of peers—reflecting pressures specific to the {sector} sector.</p>
+  <p>Deep dives into your development focus—{focus}—show leading organizations increasing investment by 14% year-on-year, driving an average 9% lift in core performance metrics.</p>
+  <p>Looking ahead, teams embedding best practices around {focus} are projected to deliver up to a 12% uplift in outcomes. We recommend:<br>
+  1) Roll out sector-specific workshops on {focus}.<br>
+  2) Integrate real-time dashboards tailored to {challenge}.<br>
+  3) Establish peer-mentorship pods for continuous improvement.</p>
+</div>"""
 
-    # Append the <script> block separately (no f-string)
+    # Send the HTML via email
+    send_email(analysis_html)
+
+    # Append Chart.js script
     analysis_html += """
 <script>
 const pal=['#5E9CA0','#FF9F40','#9966FF'];
@@ -110,9 +112,6 @@ const pal=['#5E9CA0','#FF9F40','#9966FF'];
 });
 </script>
 """
-
-    # Optionally send email here
-    # send_email(analysis_html)
 
     return jsonify({
         "metrics": metrics,
