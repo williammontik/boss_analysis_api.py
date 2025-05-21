@@ -25,8 +25,8 @@ def compute_age(data):
             month = int(m) if m.isdigit() else datetime.strptime(m, "%B").month
             bd = datetime(int(y), month, int(d))
         else:
-            bd = parser.parse(data.get("dob", ""), dayfirst=True)
-    except Exception:
+            bd = parser.parse(data.get("dob",""), dayfirst=True)
+    except:
         bd = datetime.today()
     today = datetime.today()
     return today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
@@ -54,7 +54,6 @@ def boss_analyze():
     focus      = data.get("focus", "").strip()
     country    = data.get("country", "").strip()
 
-    # Compute age
     age = compute_age(data)
 
     # Fixed metrics
@@ -64,7 +63,7 @@ def boss_analyze():
         {"title":"Task Completion Reliability","labels":["Segment","Regional","Global"],"values":[82,66,84]},
     ]
 
-    # Build widget‐fragment HTML (exactly as you approved)
+    # Build the widget HTML up to before the <script> tag
     analysis_html = f"""
 <h2 class="header">🎉 AI Team Member Performance Insights:</h2>
 <div class="charts-row">
@@ -97,6 +96,10 @@ def boss_analyze():
   2) Embed scenario-based risk workshops into Agile ceremonies.<br>
   3) Deploy real-time resource-tracking dashboards with automated alerts.</p>
 </div>
+"""
+
+    # Append the <script> block as a normal (non-f) triple-quoted string
+    analysis_html += """
 <script>
   const pal=['#5E9CA0','#FF9F40','#9966FF'];
   [[79,65,74,'Communication Efficiency'],[63,68,76,'Leadership Readiness'],[82,66,84,'Task Completion Reliability']]
@@ -110,7 +113,7 @@ def boss_analyze():
 </script>
 """
 
-    # Send the same HTML as an email if desired:
+    # Optionally send email
     # send_email(analysis_html)
 
     return jsonify({
