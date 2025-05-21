@@ -85,9 +85,9 @@ def boss_analyze():
             )
         bar_html += "<br>"
 
-    # 4) 📄 Workplace Performance Report, 3-line gap below charts
+    # 4) 📄 Workplace Performance Report, now with only one-line gap below charts
     report_html = (
-        "<br>\n<br>\n<br>\n"                                # 3-line gap
+        "<br>\n"                                # SINGLE-line gap
       + "<h2 class=\"sub\">📄 Workplace Performance Report</h2>\n"
       + f"• Age: {age}<br>"
       + f"• Position: {position}<br>"
@@ -97,13 +97,13 @@ def boss_analyze():
       + f"• Country: {country}<br>"
       + f"• Main Challenge: {challenge}<br>"
       + f"• Development Focus: {focus}<br>"
-      + "<br>\n<br>\n<br>\n"                             # 3-line gap before global header
+      + "<br>\n<br>\n<br>\n"             # 3-line gap before global section
     )
 
     # 5) Extract stats for prompt
     seg_stat, reg_stat, glob_stat = metrics[0][1], metrics[0][2], metrics[0][3]
 
-    # 6) Dynamically generate the Global Section
+    # 6) Dynamically generate the Global Section via OpenAI
     prompt = f"""
 Generate exactly seven professional two- to three-sentence analytical paragraphs for a "🌐 Global Section Analytical Report", written as an industry overview referencing aggregated professionals by experience band, sector, region, and global benchmarks. Include explicit mentions of:
 - "{seg_stat}% of peers in Singapore rate high on Communication Efficiency"
