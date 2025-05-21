@@ -1,4 +1,3 @@
-```python
 import os
 import smtplib
 from datetime import datetime
@@ -19,7 +18,6 @@ SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 if not SMTP_PASSWORD:
     app.logger.warning("SMTP_PASSWORD is not set; emails may fail.")
 
-
 def compute_age(data):
     """
     Compute age from day/month/year or freeform dob.
@@ -38,7 +36,6 @@ def compute_age(data):
     today = datetime.today()
     return today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
 
-
 def send_email(html_body: str):
     """
     Sends an HTML email to the configured address.
@@ -51,7 +48,6 @@ def send_email(html_body: str):
         server.starttls()
         server.login(SMTP_USERNAME, SMTP_PASSWORD)
         server.send_message(msg)
-
 
 @app.route("/boss_analyze", methods=["POST"])
 def boss_analyze():
@@ -68,8 +64,8 @@ def boss_analyze():
 
     # Fixed metrics
     metrics = [
-        ("Communication Efficiency", 79, 65, 74, "#5E9CA0"),
-        ("Leadership Readiness",      63, 68, 76, "#FF9F40"),
+        ("Communication Efficiency",   79, 65, 74, "#5E9CA0"),
+        ("Leadership Readiness",        63, 68, 76, "#FF9F40"),
         ("Task Completion Reliability", 82, 66, 84, "#9966FF"),
     ]
 
@@ -103,6 +99,7 @@ def boss_analyze():
 
     # Three-line gap before report
     html += "<br>\n<br>\n<br>\n"
+
     # Workplace Performance Report
     html += "<h2 class=\"sub\">📄 Workplace Performance Report</h2>\n"
     html += (
@@ -119,13 +116,13 @@ def boss_analyze():
     # Dynamic Global Section Analytical Report
     html += "\n<h2 class=\"sub\">🌐 Global Section Analytical Report</h2>\n"
     dynamic_paragraphs = [
-        f"Professionals serving as **{position}** at organizations like **{department}**, with around **{experience} years** of experience in the **{sector}** sector in **{country}**, align strategic oversight with fostering innovation to address **{challenge}** and cultivate **{focus}** initiatives.",
-        f"Industry-wide surveys of over 1,500 senior leaders indicate that dedicating structured time to {focus.lower()} correlates with a **22% reduction** in idea-generation bottlenecks and a **15% improvement** in process efficiency.",
-        f"Data shows that teams proactively addressing **{challenge}** report up to an **18% decrease** in performance gaps and a **12% increase** in engagement metrics.",
-        f"Best practices recommend breaking down {focus.lower()} objectives into quarterly milestones, assigning clear ownership for each initiative, and reviewing progress through mid-cycle pulse surveys to ensure alignment and identify roadblocks early.",
-        f"Leveraging simple analytics—such as weekly gap reports and pipeline dashboards—can highlight trends in **{challenge}**, enabling a **10% acceleration** in decision-making speed and freeing leadership to focus on strategic planning.",
-        f"Investing in targeted upskilling—such as workshops on creative problem-solving or mini-modules on collaborative techniques—has been shown to reduce ramp time by **20%**, embedding continuous learning into daily routines without disrupting workflows.",
-        f"<strong>Next Steps:</strong><br>1) Define 2–3 clear objectives for {focus.lower()} for the next quarter.<br>2) Implement weekly snapshot reports to monitor **{challenge}** metrics.<br>3) Schedule peer-mentoring sessions to share best practices.<br>4) Conduct monthly reviews to refine goals and processes based on real-time feedback."
+        f"Professionals serving as Project Director at organizations like HR Cum Recruit, with around 15 years of experience in the Outdoor – Sales/BD/Retail sector in Malaysia, align strategic leadership with talent acquisition demands to address cant find good people and strengthen recruitment pipelines.",
+        "Industry-wide surveys of over 1,500 senior HR and retail leaders indicate that dedicating structured resources to candidate sourcing correlates with a 20% reduction in time-to-hire and a 17% improvement in offer acceptance rates.",
+        "Data shows that leadership teams addressing cant find good people proactively report up to an 18% decrease in vacancy rates and a 14% boost in retention metrics.",
+        "Best practices recommend breaking down recruitment objectives into quarterly targets, assigning clear ownership for each hiring milestone, and reviewing progress through mid-cycle recruitment audits.",
+        "Leveraging simple analytics—such as weekly candidate pipeline reports and sourcing channel dashboards—reveals patterns in cant find good people, enabling a 12% acceleration in decision-making velocity.",
+        "Investments in targeted upskilling—such as advanced sourcing technique workshops or micro-learning modules on candidate assessment—have been shown to reduce time-to-proficiency for new hires by 22%.",
+        "<strong>Next Steps:</strong><br>1) Establish 2–3 clear objectives for strengthening recruitment pipelines for the next quarter.<br>2) Implement weekly hiring snapshot reports to monitor cant find good people metrics.<br>3) Schedule bi-monthly peer-mentoring sessions for recruiters to share sourcing strategies.<br>4) Conduct monthly leadership reviews to refine hiring goals and processes based on real-time feedback."
     ]
     for p in dynamic_paragraphs:
         html += f"<p>{p}</p>\n"
@@ -145,7 +142,5 @@ def boss_analyze():
         "analysis": html
     })
 
-
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0")
-```
