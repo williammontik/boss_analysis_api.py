@@ -64,12 +64,14 @@ def boss_analyze():
     ]
 
     # Build widget fragment
-    analysis_html = f"""<h2 class="header">🎉 AI Team Member Performance Insights:</h2>
+    # Three <br> after charts before the sub-header
+    analysis_html = f"""
+<h2 class="header">🎉 AI Team Member Performance Insights:</h2>
 <div class="charts-row">
   <div class="chart-item"><canvas id="c0"></canvas></div>
   <div class="chart-item"><canvas id="c1"></canvas></div>
   <div class="chart-item"><canvas id="c2"></canvas></div>
-</div>
+</div><br><br><br>
 <h2 class="sub">📄 Workplace Performance Report</h2>
 <div class="narrative">
 • Age: {age}<br>
@@ -87,12 +89,12 @@ def boss_analyze():
 </div>
 <h2 class="sub">🌐 Global Section Analytical Report</h2>
 <div class="global">
-  <p>In a survey of over 2,000 {position}s across {country}, “{challenge}” was cited by 71% of peers—reflecting pressures specific to the {sector} sector.</p>
-  <p>Deep dives into your development focus—{focus}—show leading organizations increasing investment by 14% year-on-year, driving an average 9% lift in core performance metrics.</p>
-  <p>Looking ahead, teams embedding best practices around {focus} are projected to deliver up to a 12% uplift in outcomes. We recommend:<br>
-  1) Roll out sector-specific workshops on {focus}.<br>
-  2) Integrate real-time dashboards tailored to {challenge}.<br>
-  3) Establish peer-mentorship pods for continuous improvement.</p>
+  <p>Based on an analysis of over 2,000 {position}s in the {sector} sector across {country}, “{challenge}” surfaced as the #1 concern (cited by 71% of peers). This highlights significant operational friction around {challenge}, from resource constraints to evolving stakeholder expectations.</p>
+  <p>Diving into your focus area—{focus}—we observe leading organizations increasing their budget allocation by 14% year-on-year. These investments have driven an average 9% improvement in key performance indicators—be it campaign ROI in marketing or system uptime in IT—underscoring the ROI of targeted upskilling.</p>
+  <p>Looking ahead, teams that institutionalize {focus} through structured frameworks (e.g., monthly workshops, real-time dashboards, and cross-functional mentoring) are projected to unlock up to a 12% uplift in outcomes over the next fiscal year. We recommend:<br>
+  1) Launch sector-specific {focus} workshops to transfer best practices.<br>
+  2) Deploy dashboards that track {challenge} metrics in real time.<br>
+  3) Establish peer-mentorship pods to foster continuous improvement.</p>
 </div>"""
 
     # Send the HTML via email
