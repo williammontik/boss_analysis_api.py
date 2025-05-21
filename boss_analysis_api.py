@@ -1,6 +1,6 @@
-```python
-# boss_analysis_api.py
-import os, random
+# -*- coding: utf-8 -*-
+import os
+import random
 from datetime import datetime
 from dateutil import parser
 from flask import Flask, request, jsonify
@@ -34,7 +34,7 @@ def compute_age(data):
             bd = datetime(int(y), month, int(d))
         else:
             bd = parser.parse(data.get("dob",""), dayfirst=True)
-    except:
+    except Exception:
         bd = datetime.today()
     today = datetime.today()
     return today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
@@ -55,22 +55,22 @@ def boss_analyze():
     lang = data.get("lang", "en")
 
     # Extract inputs
-    position   = data.get("position",""").strip()
-    department = data.get("department",""").strip()
-    experience = data.get("experience",""").strip()
-    sector     = data.get("sector",""").strip()
-    challenge  = data.get("challenge",""").strip()
-    focus      = data.get("focus",""").strip()
-    country    = data.get("country",""").strip()
+    position   = data.get("position", "").strip()
+    department = data.get("department", "").strip()
+    experience = data.get("experience", "").strip()
+    sector     = data.get("sector", "").strip()
+    challenge  = data.get("challenge", "").strip()
+    focus      = data.get("focus", "").strip()
+    country    = data.get("country", "").strip()
     age        = compute_age(data)
 
-    # Random metrics
+    # Generate random metrics
     def rand_vals():
-        return (random.randint(60,90), random.randint(55,85), random.randint(60,88))
+        return (random.randint(60, 90), random.randint(55, 85), random.randint(60, 88))
     metrics = [
-        ("Communication Efficiency", *rand_vals(), "#5E9CA0"),
-        ("Leadership Readiness",      *rand_vals(), "#FF9F40"),
-        ("Task Completion Reliability",*rand_vals(), "#9966FF"),
+        ("Communication Efficiency",   *rand_vals(), "#5E9CA0"),
+        ("Leadership Readiness",        *rand_vals(), "#FF9F40"),
+        ("Task Completion Reliability", *rand_vals(), "#9966FF"),
     ]
 
     # Build bar_html
@@ -84,131 +84,123 @@ def boss_analyze():
             )
         bar_html += "<br>"
 
-    # Language-specific static headings & footer & prompt
+    # Prepare static sections and prompt
     seg_stat, reg_stat, glob_stat = metrics[0][1], metrics[0][2], metrics[0][3]
+
     if lang == "zh":
         report_title = '<h2 class="sub">📄 职场绩效报告</h2>\n'
         global_header = '<h2 class="sub" style="margin:0.8em 0;">🌐 全球分析概览</h2>\n'
-        footer = """
-<div style="background:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;">
-  <strong>本报告由 KataChat AI 系统生成，基于：</strong><br>
-  1. 我们专有的匿名职场档案数据库（新加坡、马来西亚、台湾）<br>
-  2. OpenAI 研究及行业基准数据<br>
-  <em>所有数据遵循 PDPA 合规，最低样本量 1,000+</em>
-</div>
-<p style="background:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;">
-  <strong>PS：</strong>报告已通过邮件发送，24 小时内应可收到。如需 15 分钟讨论，请联系我们。
-</p>
-"""
-        prompt = f"""
-请用简体中文生成七段专业的两到三句话分析，作为行业概览，参照按经验年限、部门、区域和全球基准汇总的专业人士数据。每段用<p>…</p>标签，并包含：
-- 新加坡同行中有 {seg_stat}% 的人沟通效率很高；
-- 马来西亚平均为 {reg_stat}%；
-- 全球基准为 {glob_stat}%。
-请仅根据以下信息撰写：
-Position: {position}
-Department: {department}
-Years of Experience: {experience}
-Sector: {sector}
-Country: {country}
-Main Challenge: {challenge}
-Development Focus: {focus}
-"""
+        footer = (
+            '<div style="background:#e6f7ff; color:#00529B; padding:15px; '
+            'border-left:4px solid #00529B; margin:20px 0;">'
+            '<strong>本报告由 KataChat AI 系统生成，基于：</strong><br>'
+            '1. 我们专有的匿名职场档案数据库（新加坡、马来西亚、台湾）<br>'
+            '2. OpenAI 研究及行业基准数据<br>'
+            '<em>所有数据遵循 PDPA 合规，最低样本量 1,000+</em>'
+            '</div>'
+            '<p style="background:#e6f7ff; color:#00529B; padding:15px; '
+            'border-left:4px solid #00529B; margin:20px 0;">'
+            '<strong>PS：</strong>报告已通过邮件发送，24 小时内应可收到。如需 15 分钟讨论，请联系我们。'
+            '</p>'
+        )
+        prompt = (
+            f"请用简体中文生成七段专业的两到三句话分析，作为行业概览，参照按经验年限、部门、区域和全球基准汇总的专业人士数据。"
+            f"每段用<p>…</p>标签，并包含："
+            f"新加坡同行中有 {seg_stat}% 的人沟通效率很高；"
+            f"马来西亚平均为 {reg_stat}%；"
+            f"全球基准为 {glob_stat}%。"
+            f"请仅根据以下信息撰写："
+            f"Position: {position}; Department: {department}; Years: {experience}; "
+            f"Sector: {sector}; Country: {country}; Challenge: {challenge}; Focus: {focus}."
+        )
 
     elif lang == "tw":
         report_title = '<h2 class="sub">📄 職場績效報告</h2>\n'
         global_header = '<h2 class="sub" style="margin:0.8em 0;">🌐 全球分析概覽</h2>\n'
-        footer = """
-<div style="background:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;">
-  <strong>本報告由 KataChat AI 系統生成，依據：</strong><br>
-  1. 我們的匿名職場資料庫（新加坡、馬來西亞、臺灣）<br>
-  2. OpenAI 研究與全球基準數據<br>
-  <em>所有資料均符合 PDPA，最低樣本量 1,000+</em>
-</div>
-<p style="background:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;">
-  <strong>PS：</strong>報告已通過電子郵件發送，24 小時內應收到。如需 15 分鐘討論，歡迎聯絡。
-</p>
-"""
-        prompt = f"""
-請用繁體中文生成七段專業的兩到三句分析，作為行業概覽，參照按經驗年限、部門、區域和全球基準彙整的專業人士數據。每段用<p>…</p>標籤，並包含：
-- 新加坡同儕中有 {seg_stat}% 溝通效率很高；
-- 馬來西亞平均為 {reg_stat}%；
-- 全球基準為 {glob_stat}%。
-請僅根據以下資訊撰寫：
-Position: {position}
-Department: {department}
-Years of Experience: {experience}
-Sector: {sector}
-Country: {country}
-Main Challenge: {challenge}
-Development Focus: {focus}
-"""
+        footer = (
+            '<div style="background:#e6f7ff; color:#00529B; padding:15px; '
+            'border-left:4px solid #00529B; margin:20px 0;">'
+            '<strong>本報告由 KataChat AI 系統生成，依據：</strong><br>'
+            '1. 我們的匿名職場資料庫（新加坡、马来西亚、臺灣）<br>'
+            '2. OpenAI 研究與全球基準數據<br>'
+            '<em>所有資料均符合 PDPA，最低樣本量 1,000+</em>'
+            '</div>'
+            '<p style="background:#e6f7ff; color:#00529B; padding:15px; '
+            'border-left:4px solid #00529B; margin:20px 0;">'
+            '<strong>PS：</strong>報告已通過電子郵件發送，24 小时內应收到。如需 15 分钟讨论，欢迎联系。'
+            '</p>'
+        )
+        prompt = (
+            f"請用繁體中文生成七段專業的兩到三句分析，作為行業概覽，參照按經驗年限、部門、區域和全球基準彙整的專業人士數據。"
+            f"每段用<p>…</p>標籤，並包含："
+            f"新加坡同儕中有 {seg_stat}% 溝通效率很高；"
+            f"馬來西亞平均為 {reg_stat}%；"
+            f"全球基準為 {glob_stat}%。"
+            f"請僅根據以下信息撰寫："
+            f"Position: {position}; Department: {department}; Years: {experience}; "
+            f"Sector: {sector}; Country: {country}; Challenge: {challenge}; Focus: {focus}."
+        )
 
     else:
         report_title = '<h2 class="sub">📄 Workplace Performance Report</h2>\n'
         global_header = (
             '<h2 class="sub" style="margin-top:0.8em; margin-bottom:0.8em;">'
-            '🌐 Global Section Analytical Report'
-            '</h2>\n'
+            '🌐 Global Section Analytical Report</h2>\n'
         )
-        footer = """
-<div style="background-color:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;">
-  <strong>The insights in this report are generated by KataChat’s AI systems analyzing:</strong><br>
-  1. Our proprietary database of anonymized professional profiles across Singapore, Malaysia, and Taiwan<br>
-  2. Aggregated global business benchmarks from trusted OpenAI research and leadership trend datasets<br>
-  <em>All data is processed through our AI models to identify statistically significant patterns while maintaining strict PDPA compliance. Sample sizes vary by analysis, with minimum thresholds of 1,000+ data points for management comparisons.</em>
-</div>
-<p style="background-color:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;">
-  <strong>PS:</strong> This report has also been sent to your email inbox and should arrive within 24 hours. If you'd like to discuss it further, feel free to reach out — we’re happy to arrange a 15-minute call at your convenience.
-</p>
-"""
-        prompt = f"""
-Generate exactly seven professional two- to three-sentence analytical paragraphs for a "Global Section Analytical Report", written as an industry overview referencing aggregated professionals by experience band, sector, region, and global benchmarks. Include explicit mentions of:
-- "{seg_stat}% of peers in Singapore rate high on Communication Efficiency"
-- "{reg_stat}% is the average across Malaysia"
-- "{glob_stat}% represents the global benchmark"
-Reference only the following:
-Position: {position}
-Department: {department}
-Years of Experience: {experience}
-Sector: {sector}
-Country: {country}
-Main Challenge: {challenge}
-Development Focus: {focus}
-Wrap each paragraph in <p>…</p> tags.
-"""
+        footer = (
+            '<div style="background-color:#e6f7ff; color:#00529B; padding:15px; '
+            'border-left:4px solid #00529B; margin:20px 0;">'
+            '<strong>The insights in this report are generated by KataChat’s AI systems analyzing:</strong><br>'
+            '1. Our proprietary database of anonymized professional profiles across Singapore, Malaysia, and Taiwan<br>'
+            '2. Aggregated global business benchmarks from trusted OpenAI research and leadership trend datasets<br>'
+            '<em>All data is processed through our AI models to identify statistically significant patterns while maintaining strict PDPA compliance. Sample sizes vary by analysis, with minimum thresholds of 1,000+ data points for management comparisons.</em>'
+            '</div>'
+            '<p style="background-color:#e6f7ff; color:#00529B; padding:15px; '
+            'border-left:4px solid #00529B; margin:20px 0;">'
+            '<strong>PS:</strong> This report has also been sent to your email inbox and should arrive within 24 hours. '
+            'If you\'d like to discuss it further, feel free to reach out — we’re happy to arrange a 15-minute call at your convenience.'
+            '</p>'
+        )
+        prompt = (
+            f"Generate exactly seven professional two- to three-sentence analytical paragraphs for a 'Global Section Analytical Report', "
+            f"written as an industry overview referencing aggregated professionals by experience band, sector, region, and global benchmarks. "
+            f"Include: '{seg_stat}% of peers in Singapore rate high on Communication Efficiency', "
+            f"'{reg_stat}% is the average across Malaysia', '{glob_stat}% represents the global benchmark'. "
+            f"Reference only: Position: {position}; Department: {department}; Years: {experience}; "
+            f"Sector: {sector}; Country: {country}; Challenge: {challenge}; Focus: {focus}. Wrap each paragraph in <p>…</p> tags."
+        )
 
-    # OpenAI call
+    # Call OpenAI
     completion = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
-            {"role":"system","content":"You are an expert business analyst aware of regional and global benchmarks."},
-            {"role":"user","content": prompt}
+            {"role": "system", "content": "You are an expert business analyst aware of regional and global benchmarks."},
+            {"role": "user",   "content": prompt}
         ],
         temperature=0.7
     )
     global_html = completion.choices[0].message.content
 
-    # Static report section
+    # Assemble report
     report_html = (
-        "<br>\n"
-        + report_title
-        + f"• Age: {age}<br>"
-        + f"• Position: {position}<br>"
-        + f"• Department: {department}<br>"
-        + f"• Experience: {experience} year(s)<br>"
-        + f"• Sector: {sector}<br>"
-        + f"• Country: {country}<br>"
-        + f"• Main Challenge: {challenge}<br>"
-        + f"• Development Focus: {focus}<br>"
+        "<br>\n" +
+        report_title +
+        f"• Age: {age}<br>" +
+        f"• Position: {position}<br>" +
+        f"• Department: {department}<br>" +
+        f"• Experience: {experience} year(s)<br>" +
+        f"• Sector: {sector}<br>" +
+        f"• Country: {country}<br>" +
+        f"• Main Challenge: {challenge}<br>" +
+        f"• Development Focus: {focus}<br>"
     )
 
     analysis_html = bar_html + report_html + global_header + global_html + footer
-
     send_email(analysis_html)
+
     return jsonify({
         "metrics": [
-            {"title": t, "labels": ["Segment","Regional","Global"], "values": [s, r, g]}
+            {"title": t, "labels": ["Segment", "Regional", "Global"], "values": [s, r, g]}
             for t, s, r, g, _ in metrics
         ],
         "analysis": analysis_html
@@ -216,4 +208,3 @@ Wrap each paragraph in <p>…</p> tags.
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
-```
