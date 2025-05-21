@@ -86,7 +86,7 @@ def boss_analyze():
             )
         bar_html += "<br>"
 
-    # 4) 📄 Workplace Performance Report, with one-line gap below charts
+    # 4) 📄 Workplace Performance Report
     report_html = (
         "<br>\n"
       + "<h2 class=\"sub\">📄 Workplace Performance Report</h2>\n"
@@ -98,7 +98,6 @@ def boss_analyze():
       + f"• Country: {country}<br>"
       + f"• Main Challenge: {challenge}<br>"
       + f"• Development Focus: {focus}<br>"
-      + "<br>\n<br>\n<br>\n"  # three-line gap before global section
     )
 
     # 5) Extract stats for prompt
@@ -145,15 +144,17 @@ Wrap each paragraph in <p>...</p> tags.
 </p>
 """
 
-    # 8) Assemble full analysis HTML with two-line gap around global header
+    # 8) Assemble full analysis HTML with CSS margins on the Global header
     analysis_html = (
         bar_html
       + report_html
-      # ── two blank lines BEFORE the global header ──
-      + "<br>\n<br>\n"
-      + "<h2 class=\"sub\">🌐 Global Section Analytical Report</h2>\n"
-      # ── two blank lines AFTER the global header ──
-      + "<br>\n<br>\n"
+      + (
+          '<h2 class="sub" '
+          'style="text-align:center; margin-top:0.8em; margin-bottom:0.8em; '
+                'font-size:24px;">'
+          '🌐 Global Section Analytical Report'
+          '</h2>\n'
+        )
       + global_html
       + footer
     )
