@@ -1,5 +1,6 @@
 import os
 import smtplib
+import random
 from datetime import datetime
 from dateutil import parser
 from email.mime.text import MIMEText
@@ -64,11 +65,17 @@ def boss_analyze():
     country    = data.get("country","").strip()
     age        = compute_age(data)
 
-    # 2) Fixed metrics
+    # 2) Generate random metrics dynamically
+    def rand_vals():
+        return (
+            random.randint(60, 90),  # segment
+            random.randint(55, 85),  # regional
+            random.randint(60, 88)   # global
+        )
     metrics = [
-        ("Communication Efficiency",   79, 65, 74, "#5E9CA0"),
-        ("Leadership Readiness",        63, 68, 76, "#FF9F40"),
-        ("Task Completion Reliability", 82, 66, 84, "#9966FF"),
+        ("Communication Efficiency",   *rand_vals(), "#5E9CA0"),
+        ("Leadership Readiness",        *rand_vals(), "#FF9F40"),
+        ("Task Completion Reliability", *rand_vals(), "#9966FF"),
     ]
 
     # 3) Build HTML for horizontal bars with percentages
@@ -96,9 +103,12 @@ def boss_analyze():
         f"• Development Focus: {focus}<br>"
     )
 
-    # 5) Dynamically generate the Global Section via OpenAI with regional & global comparisons
+    # Pull one stat from the first metric to embed in the narrative prompt
+    sample_stat = metrics[0][1]
+
+    # 5) Dynamically generate the Global Section via OpenAI, injecting sample_stat
     prompt = f"""
-Generate exactly seven professional two- to three-sentence analytical paragraphs for a "🌐 Global Section Analytical Report", written as an industry overview referencing aggregated professionals by experience band, sector, region, and global benchmarks. Include explicit comparisons of the key metrics and practices across Singapore, Malaysia, Taiwan, and global averages. Do NOT mention or personalize a single person.
+Generate exactly seven professional two- to three-sentence analytical paragraphs for a "🌐 Global Section Analytical Report", written as an industry overview referencing aggregated professionals by experience band, sector, region, and global benchmarks. Include a line such as "{sample_stat}% of peers in Singapore rate high on Communication Efficiency" and relate it to the main challenge or focus. Do NOT mention or personalize a single person.
 
 Use only these details:
 - Position: {position}
@@ -114,7 +124,7 @@ Wrap each paragraph in <p>...</p> tags.
     completion = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[
-            {"role": "system", "content": "You are an expert business analyst with deep domain knowledge and aware of regional and global benchmarks."},
+            {"role": "system", "content": "You are an expert business analyst aware of regional and global benchmarks."},
             {"role": "user",   "content": prompt}
         ],
         temperature=0.7
@@ -139,9 +149,9 @@ Wrap each paragraph in <p>...</p> tags.
     analysis_html = (
         bar_html
         + report_html
-        + "<br>\n<br>\n"
+        + "<br>\n<br>\n"  # two-line gap before global section
         + "<h2 class=\"sub\">🌐 Global Section Analytical Report</h2>\n"
-        + "<br>\n<br>\n"
+        + "<br>\n<br>\n"  # two-line gap after header
         + global_html
         + footer
     )
@@ -150,8 +160,8 @@ Wrap each paragraph in <p>...</p> tags.
     send_email(analysis_html)
     return jsonify({
         "metrics": [
-            {"title": t, "labels": ["Segment","Regional","Global"], "values": [s,r,g]}
-            for t,s,r,g,_ in metrics
+            {"title": t, "labels": ["Segment","Regional","Global"], "values": [s, r, g]}
+            for t, s, r, g, _ in metrics
         ],
         "analysis": analysis_html
     })
