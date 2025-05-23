@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
 import random
-import traceback
 from datetime import datetime
 from dateutil import parser
 from flask import Flask, request, jsonify
@@ -12,15 +11,14 @@ import smtplib
 
 app = Flask(__name__)
 CORS(app)
-app.logger.setLevel("DEBUG")
 
-# ── OpenAI Client ────────────────────────────────────────────────────────────
+# ── OpenAI Client ───────────────────────────────────────────────────────
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY:
     raise RuntimeError("OPENAI_API_KEY not set")
 client = OpenAI(api_key=OPENAI_API_KEY)
 
-# ── SMTP configuration ───────────────────────────────────────────────────────
+# ── SMTP config ─────────────────────────────────────────────────────────
 SMTP_SERVER   = "smtp.gmail.com"
 SMTP_PORT     = 587
 SMTP_USERNAME = "kata.chatbot@gmail.com"
@@ -29,141 +27,152 @@ if not SMTP_PASSWORD:
     app.logger.warning("SMTP_PASSWORD is not set; emails may fail.")
 
 def compute_age(data):
+    d, m, y = data.get("dob_day"), data.get("dob_month"), data.get("dob_year")
     try:
-        d, m, y = data.get("dob_day"), data.get("dob_month"), data.get("dob_year")
         if d and m and y:
             month = int(m) if m.isdigit() else datetime.strptime(m, "%B").month
             bd = datetime(int(y), month, int(d))
         else:
             bd = parser.parse(data.get("dob",""), dayfirst=True)
-        today = datetime.today()
-        return today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
-    except Exception as e:
-        app.logger.error("Error computing age: %s", e)
-        return 0
+    except Exception:
+        bd = datetime.today()
+    today = datetime.today()
+    return today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
 
 def send_email(html_body: str):
-    try:
-        msg = MIMEText(html_body, 'html')
-        msg["Subject"] = "Your Workplace Performance Report"
-        msg["From"]    = SMTP_USERNAME
-        msg["To"]      = SMTP_USERNAME
-        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
-            server.starttls()
-            server.login(SMTP_USERNAME, SMTP_PASSWORD)
-            server.send_message(msg)
-        app.logger.info("✅ Email sent")
-    except Exception as e:
-        app.logger.error("❌ Failed to send email: %s", e)
+    msg = MIMEText(html_body, 'html')
+    msg["Subject"] = "Your Workplace Performance Report"
+    msg["From"]    = SMTP_USERNAME
+    msg["To"]      = SMTP_USERNAME
+    with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+        server.starttls()
+        server.login(SMTP_USERNAME, SMTP_PASSWORD)
+        server.send_message(msg)
 
 @app.route("/boss_analyze", methods=["POST"])
 def boss_analyze():
-    app.logger.info("→ /boss_analyze called")
-    try:
-        data = request.get_json(force=True)
-        app.logger.debug("Payload: %s", data)
-    except Exception as e:
-        app.logger.error("❌ JSON parse error: %s", e)
-        return jsonify(error="Invalid JSON"), 400
+    data       = request.get_json(force=True)
+    lang       = data.get("lang", "en").lower()
+    position   = data.get("position","").strip()
+    department = data.get("department","").strip()
+    experience = data.get("experience","").strip()
+    sector     = data.get("sector","").strip()
+    challenge  = data.get("challenge","").strip()
+    focus      = data.get("focus","").strip()
+    country    = data.get("country","").strip()
+    age        = compute_age(data)
 
-    # 1) Extract & log
-    position   = (data.get("position") or "").strip()
-    challenge  = (data.get("challenge") or "").strip()
-    focus      = (data.get("focus") or "").strip()
-    app.logger.info("Position=%s, Challenge=%s, Focus=%s",
-                    position, challenge, focus)
-
-    # 2) Compute age
-    age = compute_age(data)
-    app.logger.info("Computed age: %s", age)
-
-    # 3) Generate metrics
+    # 1) Generate metrics
     metrics = []
     for title, color in [
-        ("Communication Efficiency", "#5E9CA0"),
-        ("Leadership Readiness",      "#FF9F40"),
-        ("Task Completion Reliability","#9966FF"),
+        ("Communication Efficiency",   "#5E9CA0"),
+        ("Leadership Readiness",        "#FF9F40"),
+        ("Task Completion Reliability", "#9966FF"),
     ]:
         seg, reg, glo = random.randint(60,90), random.randint(55,85), random.randint(60,88)
         metrics.append((title, seg, reg, glo, color))
-        app.logger.debug("Metric %s → %s,%s,%s", title, seg, reg, glo)
 
-    # 4) Build bar_html
+    # 2) Build horizontal bar HTML
     bar_html = ""
     for title, seg, reg, glo, color in metrics:
         bar_html += f"<strong>{title}</strong><br>"
         for v in (seg, reg, glo):
             bar_html += (
                 f"<span style='display:inline-block;width:{v}%;height:12px;"
-                f"background:{color};margin-right:6px;border-radius:4px;'></span> {v}%<br>"
+                f" background:{color}; margin-right:6px; border-radius:4px;'></span> {v}%<br>"
             )
         bar_html += "<br>"
 
-    # 5) Bullet summary
-    report_html = "<br>\n<br>\n<br>\n<h2 class='sub'>📄 Workplace Performance Report</h2>\n<div class='narrative'>"
-    for label, val in [
-        ("Age", age), ("Position", position), ("Key Challenge", challenge), ("Preferred Focus", focus)
-    ]:
-        report_html += f"• {label}: {val}<br>"
-    report_html += "</div>\n"
+    # 3) Greeting
+    greeting = "<p>Dear Talent Recruiter,</p>"
 
-    # 6) Global section
-    global_header = "<h2 class='sub'>🌐 Global Section Analytical Report</h2>\n<div class='global'>\n"
+    # 4) Workplace Performance Report block
+    report_html = (
+        "<br>\n<br>\n<br>\n"
+        + '<h2 class="sub">📄 Workplace Performance Report</h2>\n'
+        + "<div class='narrative'>"
+        + f"• Age: {age}<br>"
+        + f"• Position: {position}<br>"
+        + f"• Department: {department or '—'}<br>"
+        + f"• Experience: {experience} year(s)<br>"
+        + f"• Sector: {sector}<br>"
+        + f"• Country: {country}<br>"
+        + f"• Main Challenge: {challenge}<br>"
+        + f"• Development Focus: {focus}<br>"
+        + "</div>\n"
+    )
+
+    # 5) Global Section via OpenAI
+    global_header = '<h2 class="sub">🌐 Global Section Analytical Report</h2>\n<div class="global">\n'
     prompt_global = (
-        f"You are an expert business analyst. Write a 7-paragraph analytical report for a {position}, "
-        f"age {age}, focused on “{focus}” and challenged by “{challenge}”."
+        f"You are an expert business analyst. Write seven detailed paragraphs for a {position} in {country}, "
+        f"{experience} years experience in {sector}. Challenge: “{challenge}”. Focus: “{focus}”."
     )
-    app.logger.debug("Global prompt: %s", prompt_global)
-    try:
-        resp = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role":"user","content":prompt_global}],
-            temperature=0.7
-        )
-        global_html = resp.choices[0].message.content + "</div>\n"
-        app.logger.info("✅ Global section generated")
-    except Exception as e:
-        app.logger.error("❌ OpenAI global call failed: %s", e)
-        global_html = "<p>Error generating global analysis.</p></div>\n"
+    resp_global = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role":"user","content":prompt_global}],
+        temperature=0.7
+    )
+    global_html = resp_global.choices[0].message.content + "</div>\n"
 
-    # 7) Creative approaches
-    creative_header = "<h3>Creative Innovation Approaches</h3>\n<div class='creative'>\n"
+    # 6) Creative Approaches via OpenAI
     creative_prompt = (
-        f"For a {position} whose challenge is “{challenge}” and focus is “{focus}”, "
-        "list 10 creative, actionable approaches, numbered 1-10."
+        f"You are an innovation consultant. For a {position} whose challenge is “{challenge}” "
+        f"and focus is “{focus}”, propose 10 creative, actionable approaches, numbered 1–10."
     )
-    app.logger.debug("Creative prompt: %s", creative_prompt)
-    try:
-        resp2 = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role":"user","content":creative_prompt}],
-            temperature=0.8
-        )
-        lines = resp2.choices[0].message.content.split("\n")
-        creative_html = creative_header + "".join(f"<p>{ln}</p>\n" for ln in lines if ln.strip()) + "</div>\n"
-        app.logger.info("✅ Creative section generated")
-    except Exception as e:
-        app.logger.error("❌ OpenAI creative call failed: %s", e)
-        creative_html = "<p>Error generating creative approaches.</p></div>\n"
+    resp_creative = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[{"role":"user","content":creative_prompt}],
+        temperature=0.8
+    )
+    lines = resp_creative.choices[0].message.content.split("\n")
+    creative_html = "<h3>Creative Innovation Approaches</h3>\n<div class='creative'>\n"
+    for ln in lines:
+        if ln.strip():
+            creative_html += f"<p>{ln.strip()}</p>\n"
+    creative_html += "</div>\n"
 
-    # 8) Footer
-    footer = """
-<div style="background-color:#e6f7ff;color:#00529B;...">…PDPA footer…</div>
-"""
+    # 7) Your original blue PDPA footer (unchanged)
+    footer = (
+        '<div style="background-color:#e6f7ff; color:#00529B; padding:15px; '
+        'border-left:4px solid #00529B; margin:20px 0;">'
+        '<strong>The insights in this report are generated by KataChat’s AI systems analyzing:</strong><br>'
+        '1. Our proprietary database of anonymized professional profiles across Singapore, Malaysia, and Taiwan<br>'
+        '2. Aggregated global business benchmarks from trusted OpenAI research and leadership trend datasets<br>'
+        '<em>All data is processed through our AI models to identify statistically significant patterns while maintaining strict PDPA compliance. Sample sizes vary by analysis, with minimum thresholds of 1,000+ data points for management comparisons.</em>'
+        '</div>'
+        '<p style="background-color:#e6f7ff; color:#00529B; padding:15px; '
+        'border-left:4px solid #00529B; margin:20px 0;">'
+        '<strong>PS:</strong> This report has also been sent to your email inbox and should arrive within 24 hours. '
+        'If you\'d like to discuss it further, feel free to reach out — we’re happy to arrange a 15-minute call at your convenience.'
+        '</p>'
+    )
 
-    # 9) Assemble
-    full_html = bar_html + report_html + global_header + global_html + creative_html + footer
-    app.logger.debug("Final HTML length: %d", len(full_html))
+    # 8) Sign-off
+    signoff = "<p>Sincerely,<br>[Your Name]</p>"
 
-    # 10) Send email
-    send_email(full_html)
+    # 9) Assemble full HTML
+    analysis_html = (
+        greeting
+        + bar_html
+        + report_html
+        + global_header + global_html
+        + creative_html
+        + footer
+        + signoff
+    )
+
+    # 10) Send the email
+    send_email(analysis_html)
 
     # 11) Return JSON
-    return jsonify(
-        metrics=[{"title":t,"labels":["Segment","Regional","Global"],"values":[s,r,g]} 
-                 for t,s,r,g,_ in metrics],
-        analysis=full_html
-    )
+    return jsonify({
+        "metrics": [
+            {"title": t, "labels": ["Segment","Regional","Global"], "values": [s,r,g]}
+            for t,s,r,g,_ in metrics
+        ],
+        "analysis": analysis_html
+    })
 
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=int(os.getenv("PORT",5000)))
+    app.run(debug=True, host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
