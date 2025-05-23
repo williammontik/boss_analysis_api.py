@@ -132,7 +132,7 @@ def boss_analyze():
             creative_html += f"<p>{ln.strip()}</p>\n"
     creative_html += "</div>\n"
 
-    # 7) Your original blue PDPA footer (unchanged)
+    # 7) Original blue PDPA footer (unchanged)
     footer = (
         '<div style="background-color:#e6f7ff; color:#00529B; padding:15px; '
         'border-left:4px solid #00529B; margin:20px 0;">'
@@ -148,10 +148,7 @@ def boss_analyze():
         '</p>'
     )
 
-    # 8) Sign-off
-    signoff = "<p>Sincerely,<br>[Your Name]</p>"
-
-    # 9) Assemble full HTML
+    # 8) Assemble full HTML
     analysis_html = (
         greeting
         + bar_html
@@ -159,13 +156,12 @@ def boss_analyze():
         + global_header + global_html
         + creative_html
         + footer
-        + signoff
     )
 
-    # 10) Send the email
+    # 9) Send the email
     send_email(analysis_html)
 
-    # 11) Return JSON
+    # 10) Return JSON
     return jsonify({
         "metrics": [
             {"title": t, "labels": ["Segment","Regional","Global"], "values": [s,r,g]}
