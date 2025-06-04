@@ -1,30 +1,24 @@
 # -*- coding: utf-8 -*-
 import os
-import random
+import smtplib
 from datetime import datetime
 from dateutil import parser
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from openai import OpenAI
 from email.mime.text import MIMEText
-import smtplib
+from openai import OpenAI
 
 app = Flask(__name__)
 CORS(app)
 
-# ── OpenAI Client ───────────────────────────────────────────────────────
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    raise RuntimeError("OPENAI_API_KEY not set")
-client = OpenAI(api_key=OPENAI_API_KEY)
+# === Setup ===
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# ── SMTP config ─────────────────────────────────────────────────────────
-SMTP_SERVER   = "smtp.gmail.com"
-SMTP_PORT     = 587
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
 SMTP_USERNAME = "kata.chatbot@gmail.com"
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
-if not SMTP_PASSWORD:
-    app.logger.warning("SMTP_PASSWORD is not set; emails may fail.")
+
 
 def compute_age(data):
     d, m, y = data.get("dob_day"), data.get("dob_month"), data.get("dob_year")
@@ -33,47 +27,50 @@ def compute_age(data):
             month = int(m) if m.isdigit() else datetime.strptime(m, "%B").month
             bd = datetime(int(y), month, int(d))
         else:
-            bd = parser.parse(data.get("dob",""), dayfirst=True)
+            bd = parser.parse(data.get("dob", ""), dayfirst=True)
     except Exception:
         bd = datetime.today()
     today = datetime.today()
     return today.year - bd.year - ((today.month, today.day) < (bd.month, bd.day))
 
+
 def send_email(html_body: str):
     msg = MIMEText(html_body, 'html')
     msg["Subject"] = "Your Workplace Performance Report"
-    msg["From"]    = SMTP_USERNAME
-    msg["To"]      = SMTP_USERNAME
+    msg["From"] = SMTP_USERNAME
+    msg["To"] = SMTP_USERNAME
     with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
         server.starttls()
         server.login(SMTP_USERNAME, SMTP_PASSWORD)
         server.send_message(msg)
 
+
 @app.route("/boss_analyze", methods=["POST"])
 def boss_analyze():
-    data       = request.get_json(force=True)
-    lang       = data.get("lang", "en").lower()
-    position   = data.get("position","").strip()
-    department = data.get("department","").strip()
-    experience = data.get("experience","").strip()
-    sector     = data.get("sector","").strip()
-    challenge  = data.get("challenge","").strip()
-    focus      = data.get("focus","").strip()
-    country    = data.get("country","").strip()
-    age        = compute_age(data)
+    data = request.get_json(force=True)
 
-    # 1) Generate metrics
+    position = data.get("position", "").strip()
+    department = data.get("department", "").strip()
+    experience = data.get("experience", "").strip()
+    sector = data.get("sector", "").strip()
+    challenge = data.get("challenge", "").strip()
+    focus = data.get("focus", "").strip()
+    country = data.get("country", "").strip()
+    age = compute_age(data)
+
+    # === Generate 3 Metric Groups ===
+    import random
     metrics = []
     for title, color in [
-        ("Communication Efficiency",   "#5E9CA0"),
-        ("Leadership Readiness",        "#FF9F40"),
+        ("Communication Efficiency", "#5E9CA0"),
+        ("Leadership Readiness", "#FF9F40"),
         ("Task Completion Reliability", "#9966FF"),
     ]:
-        seg, reg, glo = random.randint(60,90), random.randint(55,85), random.randint(60,88)
+        seg, reg, glo = sorted([random.randint(60, 90), random.randint(55, 85), random.randint(60, 88)], reverse=True)
         metrics.append((title, seg, reg, glo, color))
 
-    # 2) Build horizontal bar HTML
-    bar_html = ""
+    # === Bar Chart HTML ===
+    bar_html = "<p>Dear Talent Recruiter,</p>"
     for title, seg, reg, glo, color in metrics:
         bar_html += f"<strong>{title}</strong><br>"
         for v in (seg, reg, glo):
@@ -83,56 +80,33 @@ def boss_analyze():
             )
         bar_html += "<br>"
 
-    # 3) Greeting
-    greeting = "<p>Dear Talent Recruiter,</p>"
-
-    # 4) Workplace Performance Report block
-    report_html = (
-        "<br>\n<br>\n<br>\n"
-        + '<h2 class="sub">📄 Workplace Performance Report</h2>\n'
-        + "<div class='narrative'>"
-        + f"• Age: {age}<br>"
-        + f"• Position: {position}<br>"
-        + f"• Department: {department or '—'}<br>"
-        + f"• Experience: {experience} year(s)<br>"
-        + f"• Sector: {sector}<br>"
-        + f"• Country: {country}<br>"
-        + f"• Main Challenge: {challenge}<br>"
-        + f"• Development Focus: {focus}<br>"
-        + "</div>\n"
+    # === Summary Section ===
+    summary = (
+        "<div style='font-size:24px;font-weight:bold;margin-top:30px;'>🧠 Summary:</div><br>"
+        f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px;'>In {country}, professionals in the <strong>{sector}</strong> sector with <strong>{experience} years</strong> of experience often balance internal expectations with market evolution. Communication effectiveness, reflected in scores like <strong>{metrics[0][1]}%</strong>, is critical for managing not only teams but cross-functional collaboration across departments like <strong>{department or 'core operations'}</strong>.</p>"
+        f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px;'>Leadership readiness in this sector is increasingly defined by emotional intelligence and adaptability. Benchmarks across similar roles suggest a strong regional average of <strong>{metrics[1][2]}%</strong>, revealing a shared pursuit of clarity, calm under pressure, and respectful authority.</p>"
+        f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px;'>The ability to reliably complete tasks — measured at <strong>{metrics[2][1]}%</strong> — remains one of the most trusted signals of upward potential. For those in <strong>{position}</strong> roles, it reflects not just speed but discernment — choosing the right things to execute well.</p>"
+        f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px;'>Your chosen focus — <strong>{focus}</strong> — echoes a broader shift we’ve seen across management profiles in Singapore, Malaysia, and Taiwan. Investing in this area may open new pathways of resilience, influence, and sustainable growth.</p>"
     )
 
-    # 5) Global Section via OpenAI
-    global_header = '<h2 class="sub">🌐 Global Section Analytical Report</h2>\n<div class="global">\n'
-    prompt_global = (
-        f"You are an expert business analyst. Write seven detailed paragraphs for a {position} in {country}, "
-        f"{experience} years experience in {sector}. Challenge: “{challenge}”. Focus: “{focus}”."
+    # === Creative Tips ===
+    prompt = (
+        f"Give 10 region-aware and emotionally intelligent improvement ideas for a {position} from {country} "
+        f"with {experience} years in {sector}, facing '{challenge}' and focusing on '{focus}'. "
+        f"Each idea should be on its own line, written warmly, with emojis. Avoid cold tone."
     )
-    resp_global = client.chat.completions.create(
+    response = client.chat.completions.create(
         model="gpt-3.5-turbo",
-        messages=[{"role":"user","content":prompt_global}],
-        temperature=0.7
+        messages=[{"role": "user", "content": prompt}],
+        temperature=0.85
     )
-    global_html = resp_global.choices[0].message.content + "</div>\n"
+    tips = response.choices[0].message.content.strip().split("\n")
+    tips_html = "<div style='font-size:24px;font-weight:bold;margin-top:30px;'>💡 Creative Suggestions:</div><br>"
+    for line in tips:
+        if line.strip():
+            tips_html += f"<p style='margin:16px 0; font-size:17px;'>{line.strip()}</p>"
 
-    # 6) Creative Approaches via OpenAI
-    creative_prompt = (
-        f"You are an innovation consultant. For a {position} whose challenge is “{challenge}” "
-        f"and focus is “{focus}”, propose 10 creative, actionable approaches, numbered 1–10."
-    )
-    resp_creative = client.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role":"user","content":creative_prompt}],
-        temperature=0.8
-    )
-    lines = resp_creative.choices[0].message.content.split("\n")
-    creative_html = "<h3>Creative Innovation Approaches</h3>\n<div class='creative'>\n"
-    for ln in lines:
-        if ln.strip():
-            creative_html += f"<p>{ln.strip()}</p>\n"
-    creative_html += "</div>\n"
-
-    # 7) Original blue PDPA footer (unchanged)
+    # === Footer ===
     footer = (
         '<div style="background-color:#e6f7ff; color:#00529B; padding:15px; '
         'border-left:4px solid #00529B; margin:20px 0;">'
@@ -148,27 +122,18 @@ def boss_analyze():
         '</p>'
     )
 
-    # 8) Assemble full HTML
-    analysis_html = (
-        greeting
-        + bar_html
-        + report_html
-        + global_header + global_html
-        + creative_html
-        + footer
-    )
+    # === Assemble & Send ===
+    html_output = bar_html + summary + tips_html + footer
+    send_email(html_output)
 
-    # 9) Send the email
-    send_email(analysis_html)
-
-    # 10) Return JSON
     return jsonify({
         "metrics": [
-            {"title": t, "labels": ["Segment","Regional","Global"], "values": [s,r,g]}
-            for t,s,r,g,_ in metrics
+            {"title": t, "labels": ["Segment", "Regional", "Global"], "values": [s, r, g]}
+            for t, s, r, g, _ in metrics
         ],
-        "analysis": analysis_html
+        "analysis": html_output
     })
+
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
