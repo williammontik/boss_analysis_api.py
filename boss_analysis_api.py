@@ -11,7 +11,6 @@ from openai import OpenAI
 app = Flask(__name__)
 CORS(app)
 
-# === Setup ===
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 SMTP_SERVER = "smtp.gmail.com"
@@ -70,7 +69,7 @@ def boss_analyze():
         metrics.append((title, seg, reg, glo, color))
 
     # === Bar Chart HTML ===
-    bar_html = "<p>Dear Talent Recruiter,</p>"
+    bar_html = ""  # Removed "Dear Talent Recruiter,"
     for title, seg, reg, glo, color in metrics:
         bar_html += f"<strong>{title}</strong><br>"
         for v in (seg, reg, glo):
@@ -80,16 +79,16 @@ def boss_analyze():
             )
         bar_html += "<br>"
 
-    # === Summary Section ===
+    # === Summary (Justified) ===
     summary = (
         "<div style='font-size:24px;font-weight:bold;margin-top:30px;'>🧠 Summary:</div><br>"
-        f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px;'>In {country}, professionals in the <strong>{sector}</strong> sector with <strong>{experience} years</strong> of experience often balance internal expectations with market evolution. Communication effectiveness, reflected in scores like <strong>{metrics[0][1]}%</strong>, is critical for managing not only teams but cross-functional collaboration across departments like <strong>{department or 'core operations'}</strong>.</p>"
-        f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px;'>Leadership readiness in this sector is increasingly defined by emotional intelligence and adaptability. Benchmarks across similar roles suggest a strong regional average of <strong>{metrics[1][2]}%</strong>, revealing a shared pursuit of clarity, calm under pressure, and respectful authority.</p>"
-        f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px;'>The ability to reliably complete tasks — measured at <strong>{metrics[2][1]}%</strong> — remains one of the most trusted signals of upward potential. For those in <strong>{position}</strong> roles, it reflects not just speed but discernment — choosing the right things to execute well.</p>"
-        f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px;'>Your chosen focus — <strong>{focus}</strong> — echoes a broader shift we’ve seen across management profiles in Singapore, Malaysia, and Taiwan. Investing in this area may open new pathways of resilience, influence, and sustainable growth.</p>"
+        f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>In {country}, professionals in the <strong>{sector}</strong> sector with <strong>{experience} years</strong> of experience often balance internal expectations with market evolution. Communication effectiveness, reflected in scores like <strong>{metrics[0][1]}%</strong>, is critical for managing not only teams but cross-functional collaboration across departments like <strong>{department or 'core functions'}</str...
+        f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>Leadership readiness in this sector is increasingly defined by emotional intelligence and adaptability. Benchmarks across similar roles suggest a strong regional average of <strong>{metrics[1][2]}%</strong>, revealing a shared pursuit of clarity, calm under pressure, and respectful authority.</p>"
+        f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>The ability to reliably complete tasks — measured at <strong>{metrics[2][1]}%</strong> — remains one of the most trusted signals of upward potential. For those in <strong>{position}</strong> roles, it reflects not just speed but discernment — choosing the right things to execute well.</p>"
+        f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>Your chosen focus — <strong>{focus}</strong> — echoes a broader shift we’ve seen across management profiles in Singapore, Malaysia, and Taiwan. Investing in this area may open new pathways of resilience, influence, and sustainable growth.</p>"
     )
 
-    # === Creative Tips ===
+    # === Creative Suggestions ===
     prompt = (
         f"Give 10 region-aware and emotionally intelligent improvement ideas for a {position} from {country} "
         f"with {experience} years in {sector}, facing '{challenge}' and focusing on '{focus}'. "
@@ -122,7 +121,7 @@ def boss_analyze():
         '</p>'
     )
 
-    # === Assemble & Send ===
+    # === Assemble HTML ===
     html_output = bar_html + summary + tips_html + footer
     send_email(html_output)
 
