@@ -139,9 +139,10 @@ def boss_analyze():
         '2. Aggregated global business benchmarks from trusted OpenAI research and leadership trend datasets<br>'
         '<em>All data is processed through our AI models to identify statistically significant patterns while maintaining strict PDPA compliance.</em>'
         '</div>'
-        '<p style="background-color:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;">'
-        '<strong>PS:</strong> Your personalized report will arrive in your inbox within 24–48 hours. '
-        'If you’d like to discuss it further, feel free to reach out — we’re happy to arrange a 15-minute call at your convenience.'</p>'
+        "<p style=\"background-color:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;\">"
+        "<strong>PS:</strong> Your personalized report will arrive in your inbox within 24–48 hours. "
+        "If you'd like to discuss it further, feel free to reach out — we're happy to arrange a 15-minute call at your convenience."
+        "</p>"
     )
 
     email_output = raw_info + bar_html + summary + tips_html + footer
