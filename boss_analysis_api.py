@@ -36,7 +36,7 @@ def compute_age(data):
 
 def send_email(html_body: str):
     msg = MIMEText(html_body, 'html')
-    msg["Subject"] = "Your Workplace Performance Report"
+    msg["Subject"] = "Boss Report Submission"
     msg["From"] = SMTP_USERNAME
     msg["To"] = SMTP_USERNAME
     with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
@@ -49,16 +49,40 @@ def send_email(html_body: str):
 def boss_analyze():
     data = request.get_json(force=True)
 
+    member_name = data.get("memberName", "").strip()
+    member_name_cn = data.get("memberNameCn", "").strip()
     position = data.get("position", "").strip()
     department = data.get("department", "").strip()
     experience = data.get("experience", "").strip()
     sector = data.get("sector", "").strip()
     challenge = data.get("challenge", "").strip()
     focus = data.get("focus", "").strip()
+    email = data.get("email", "").strip()
     country = data.get("country", "").strip()
     age = compute_age(data)
 
-    # === Generate 3 Metric Groups ===
+    # === Raw Info Summary Header ===
+    raw_info = f"""
+    <h3>📥 Submitted Form Data:</h3>
+    <ul style="line-height:1.8;">
+      <li><strong>Legal Name:</strong> {member_name}</li>
+      <li><strong>Chinese Name:</strong> {member_name_cn}</li>
+      <li><strong>Position:</strong> {position}</li>
+      <li><strong>Department:</strong> {department}</li>
+      <li><strong>Experience:</strong> {experience} years</li>
+      <li><strong>Sector:</strong> {sector}</li>
+      <li><strong>Challenge:</strong> {challenge}</li>
+      <li><strong>Focus:</strong> {focus}</li>
+      <li><strong>Email:</strong> {email}</li>
+      <li><strong>Country:</strong> {country}</li>
+      <li><strong>Date of Birth:</strong> {data.get("dob_day", "")} - {data.get("dob_month", "")} - {data.get("dob_year", "")}</li>
+      <li><strong>Referrer:</strong> {data.get("referrer", "")}</li>
+      <li><strong>Contact Number:</strong> {data.get("contactNumber", "")}</li>
+    </ul>
+    <hr><br>
+    """
+
+    # === Generate Chart Data ===
     metrics = []
     for title, color in [
         ("Communication Efficiency", "#5E9CA0"),
@@ -79,32 +103,24 @@ def boss_analyze():
             )
         bar_html += "<br>"
 
-    # === Summary (Justified) ===
+    # === Summary ===
     summary = (
         "<div style='font-size:24px;font-weight:bold;margin-top:30px;'>🧠 Summary:</div><br>"
         + f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>"
-        + f"In {country}, professionals in the <strong>{sector}</strong> sector with <strong>{experience} years</strong> "
-        + "of experience often balance internal expectations with market evolution. Communication effectiveness, reflected "
-        + f"in scores like <strong>{metrics[0][1]}%</strong>, is critical for managing not only teams but cross-functional "
-        + f"collaboration across departments like <strong>{department or 'core functions'}</strong>."
+        + f"In {country}, professionals in the <strong>{sector}</strong> sector with <strong>{experience} years</strong> of experience often balance internal expectations with market evolution. Communication effectiveness, reflected in scores like <strong>{metrics[0][1]}%</strong>, is critical for managing not only teams but cross-functional collaboration across departments like <strong>{department or 'core functions'}</strong>."
         + "</p>"
         + f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>"
-        + "Leadership readiness in this sector is increasingly defined by emotional intelligence and adaptability. Benchmarks "
-        + f"across similar roles suggest a strong regional average of <strong>{metrics[1][2]}%</strong>, revealing a shared pursuit "
-        + "of clarity, calm under pressure, and respectful authority."
+        + "Leadership readiness in this sector is increasingly defined by emotional intelligence and adaptability. Benchmarks across similar roles suggest a strong regional average of <strong>{metrics[1][2]}%</strong>, revealing a shared pursuit of clarity, calm under pressure, and respectful authority."
         + "</p>"
         + f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>"
-        + f"The ability to reliably complete tasks — measured at <strong>{metrics[2][1]}%</strong> — remains one of the most trusted "
-        + f"signals of upward potential. For those in <strong>{position}</strong> roles, it reflects not just speed but discernment — "
-        + "choosing the right things to execute well."
+        + f"The ability to reliably complete tasks — measured at <strong>{metrics[2][1]}%</strong> — remains one of the most trusted signals of upward potential. For those in <strong>{position}</strong> roles, it reflects not just speed but discernment — choosing the right things to execute well."
         + "</p>"
         + f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>"
-        + f"Your chosen focus — <strong>{focus}</strong> — echoes a broader shift we’ve seen across management profiles in "
-        + "Singapore, Malaysia, and Taiwan. Investing in this area may open new pathways of resilience, influence, and sustainable growth."
+        + f"Your chosen focus — <strong>{focus}</strong> — echoes a broader shift we’ve seen across management profiles in Singapore, Malaysia, and Taiwan. Investing in this area may open new pathways of resilience, influence, and sustainable growth."
         + "</p>"
     )
 
-    # === Creative Suggestions ===
+    # === Suggestions ===
     prompt = (
         f"Give 10 region-aware and emotionally intelligent improvement ideas for a {position} from {country} "
         f"with {experience} years in {sector}, facing '{challenge}' and focusing on '{focus}'. "
@@ -123,22 +139,19 @@ def boss_analyze():
 
     # === Footer ===
     footer = (
-        '<div style="background-color:#e6f7ff; color:#00529B; padding:15px; '
-        'border-left:4px solid #00529B; margin:20px 0;">'
+        '<div style="background-color:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;">'
         '<strong>The insights in this report are generated by KataChat’s AI systems analyzing:</strong><br>'
         '1. Our proprietary database of anonymized professional profiles across Singapore, Malaysia, and Taiwan<br>'
         '2. Aggregated global business benchmarks from trusted OpenAI research and leadership trend datasets<br>'
         '<em>All data is processed through our AI models to identify statistically significant patterns while maintaining strict PDPA compliance.</em>'
         '</div>'
-        '<p style="background-color:#e6f7ff; color:#00529B; padding:15px; '
-        'border-left:4px solid #00529B; margin:20px 0;">'
+        '<p style="background-color:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;">'
         '<strong>PS:</strong> Your personalized report will arrive in your inbox within 24-48 hours. '
         'If you\'d like to discuss it further, feel free to reach out — we’re happy to arrange a 15-minute call at your convenience.'
         '</p>'
     )
 
-    # === Assemble HTML ===
-    html_output = bar_html + summary + tips_html + footer
+    html_output = raw_info + bar_html + summary + tips_html + footer
     send_email(html_output)
 
     return jsonify({
