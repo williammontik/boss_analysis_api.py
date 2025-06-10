@@ -103,20 +103,20 @@ def boss_analyze():
             )
         bar_html += "<br>"
         
-    # === BUG FIX: Added 'f' to the second paragraph to correctly format the metric ===
+    # === EDITED SUMMARY: Rewritten to avoid "Your..." and sound more personal ===
     summary = (
-        "<div style='font-size:24px;font-weight:bold;margin-top:30px;'>🧠 Summary:</div><br>"
+        "<div style='font-size:24px;font-weight:bold;margin-top:30px;'>🧠 Personal Insights:</div><br>"
         + f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>"
-        + f"In {country}, professionals in the <strong>{sector}</strong> sector with <strong>{experience} years</strong> of experience often balance internal expectations with market evolution. Communication effectiveness, reflected in scores like <strong>{metrics[0][1]}%</strong>, is critical for managing not only teams but cross-functional collaboration across departments like <strong>{department or 'core functions'}</strong>."
+        + f"For a professional in <strong>{country}</strong>'s <strong>{sector}</strong> sector with <strong>{experience} years</strong> of valuable experience, the journey is a rewarding one of balancing internal goals with the market's pulse. Demonstrating high effectiveness in communication (<strong>{metrics[0][1]}%</strong>) serves as a cornerstone of success, building bridges within the team and across the company."
         + "</p>"
         + f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>"
-        + f"Leadership readiness in this sector is increasingly defined by emotional intelligence and adaptability. Benchmarks across similar roles suggest a strong regional average of <strong>{metrics[1][2]}%</strong>, revealing a shared pursuit of clarity, calm under pressure, and respectful authority."
+        + f"In today's workplace, true leadership is measured by heart and adaptability. A readiness score benchmarked at <strong>{metrics[1][2]}%</strong> regionally points to a professional already on this path, one who provides the clarity and calm that others look to for guidance. This is a quality that builds trust and inspires action."
         + "</p>"
         + f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>"
-        + f"The ability to reliably complete tasks — measured at <strong>{metrics[2][1]}%</strong> — remains one of the most trusted signals of upward potential. For those in <strong>{position}</strong> roles, it reflects not just speed but discernment — choosing the right things to execute well."
+        + f"Consistently getting things done (<strong>{metrics[2][1]}%</strong>) is more than just a metric—it's a powerful signal of great potential. For a <strong>{position}</strong>, this reflects the wisdom not just to work hard, but to work on what truly matters, a trait that never goes unnoticed."
         + "</p>"
         + f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>"
-        + f"Your chosen focus — <strong>{focus}</strong> — echoes a broader shift we’ve seen across management profiles in Singapore, Malaysia, and Taiwan. Investing in this area may open new pathways of resilience, influence, and sustainable growth."
+        + f"Choosing to focus on <strong>{focus}</strong> means tapping into a key growth area we're seeing across the region. Nurturing this skill is a powerful investment in resilience and influence. Continuing on this path is a clear sign of a promising future."
         + "</p>"
     )
 
