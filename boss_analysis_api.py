@@ -103,7 +103,6 @@ def boss_analyze():
             )
         bar_html += "<br>"
         
-    # === EDITED SUMMARY: Rewritten to avoid "Your..." and sound more personal ===
     summary = (
         "<div style='font-size:24px;font-weight:bold;margin-top:30px;'>🧠 Personal Insights:</div><br>"
         + f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>"
@@ -120,15 +119,16 @@ def boss_analyze():
         + "</p>"
     )
 
+    # === UPDATED PROMPT: Asks for a more professional tone ===
     prompt = (
-        f"Give 10 region-aware and emotionally intelligent improvement ideas for a {position} from {country} "
+        f"Give 10 actionable, professional, and encouraging improvement ideas for a {position} from {country} "
         f"with {experience} years in {sector}, facing '{challenge}' and focusing on '{focus}'. "
-        f"Each idea should be on its own line, written warmly, with emojis. Avoid cold tone."
+        f"Each idea should be a clear, constructive piece of advice. The tone should be empowering and respectful, not overly casual. Use emojis thoughtfully to add warmth, not to be unprofessional."
     )
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[{"role": "user", "content": prompt}],
-        temperature=0.85
+        temperature=0.75 # Slightly lowered for more focused output
     )
     tips = response.choices[0].message.content.strip().split("\n")
     tips_html = "<div style='font-size:24px;font-weight:bold;margin-top:30px;'>💡 Creative Suggestions:</div><br>"
