@@ -1,4 +1,4 @@
- # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import os
 import smtplib
 from datetime import datetime
@@ -93,20 +93,24 @@ def boss_analyze():
     bar_html = ""
     for title, seg, reg, glo, color in metrics:
         bar_html += f"<strong>{title}</strong><br>"
-        for v in (seg, reg, glo):
+        labels = ["Segment", "Regional", "Global"]
+        values = [seg, reg, glo]
+        for i, v in enumerate(values):
             bar_html += (
+                f"<span style='font-size:14px; width:80px; display:inline-block;'>{labels[i]}:</span>"
                 f"<span style='display:inline-block;width:{v}%;height:12px;"
-                f" background:{color}; margin-right:6px; border-radius:4px;'></span> {v}%<br>"
+                f" background:{color}; margin-right:6px; border-radius:4px; vertical-align:middle;'></span> {v}%<br>"
             )
         bar_html += "<br>"
-
+        
+    # === BUG FIX: Added 'f' to the second paragraph to correctly format the metric ===
     summary = (
         "<div style='font-size:24px;font-weight:bold;margin-top:30px;'>🧠 Summary:</div><br>"
         + f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>"
         + f"In {country}, professionals in the <strong>{sector}</strong> sector with <strong>{experience} years</strong> of experience often balance internal expectations with market evolution. Communication effectiveness, reflected in scores like <strong>{metrics[0][1]}%</strong>, is critical for managing not only teams but cross-functional collaboration across departments like <strong>{department or 'core functions'}</strong>."
         + "</p>"
         + f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>"
-        + "Leadership readiness in this sector is increasingly defined by emotional intelligence and adaptability. Benchmarks across similar roles suggest a strong regional average of <strong>{metrics[1][2]}%</strong>, revealing a shared pursuit of clarity, calm under pressure, and respectful authority."
+        + f"Leadership readiness in this sector is increasingly defined by emotional intelligence and adaptability. Benchmarks across similar roles suggest a strong regional average of <strong>{metrics[1][2]}%</strong>, revealing a shared pursuit of clarity, calm under pressure, and respectful authority."
         + "</p>"
         + f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>"
         + f"The ability to reliably complete tasks — measured at <strong>{metrics[2][1]}%</strong> — remains one of the most trusted signals of upward potential. For those in <strong>{position}</strong> roles, it reflects not just speed but discernment — choosing the right things to execute well."
@@ -139,7 +143,7 @@ def boss_analyze():
         '2. Aggregated global business benchmarks from trusted OpenAI research and leadership trend datasets<br>'
         '<em>All data is processed through our AI models to identify statistically significant patterns while maintaining strict PDPA compliance.</em>'
         '</div>'
-        "<p style=\"background-color:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;\">"
+        '<p style="background-color:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;">'
         "<strong>PS:</strong> Your personalized report will arrive in your inbox within 24–48 hours. "
         "If you'd like to discuss it further, feel free to reach out — we're happy to arrange a 15-minute call at your convenience."
         "</p>"
@@ -151,10 +155,6 @@ def boss_analyze():
     send_email(email_output)
 
     return jsonify({
-        "metrics": [
-            {"title": t, "labels": ["Segment", "Regional", "Global"], "values": [s, r, g]}
-            for t, s, r, g, _ in metrics
-        ],
         "analysis": display_output
     })
 
