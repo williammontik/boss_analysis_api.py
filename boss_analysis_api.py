@@ -54,12 +54,21 @@ def boss_analyze():
     position = data.get("position", "").strip()
     department = data.get("department", "").strip()
     experience = data.get("experience", "").strip()
-    sector = data.get("sector", "").strip()
+    sector_raw = data.get("sector", "").strip()
     challenge = data.get("challenge", "").strip()
     focus = data.get("focus", "").strip()
     email = data.get("email", "").strip()
     country = data.get("country", "").strip()
     age = compute_age(data)
+
+    # === REPHRASED SECTOR DESCRIPTIONS ===
+    sector_map = {
+        "Indoor – Admin / HR / Ops / Finance": "the essential field of administration and operations",
+        "Indoor – Technical / Engineering / IT": "the innovative field of technology and engineering",
+        "Outdoor – Sales / BD / Retail": "the fast-paced world of sales and client-facing roles",
+        "Outdoor – Servicing / Logistics / Fieldwork": "the dynamic world of logistics and field operations"
+    }
+    sector = sector_map.get(sector_raw, sector_raw) # Use the recrafted text, or the original if not found
 
     raw_info = f"""
     <h3>📥 Submitted Form Data:</h3>
@@ -69,7 +78,7 @@ def boss_analyze():
       <li><strong>Position:</strong> {position}</li>
       <li><strong>Department:</strong> {department}</li>
       <li><strong>Experience:</strong> {experience} years</li>
-      <li><strong>Sector:</strong> {sector}</li>
+      <li><strong>Sector:</strong> {sector_raw}</li>
       <li><strong>Challenge:</strong> {challenge}</li>
       <li><strong>Focus:</strong> {focus}</li>
       <li><strong>Email:</strong> {email}</li>
@@ -103,32 +112,41 @@ def boss_analyze():
             )
         bar_html += "<br>"
         
+    # === DYNAMIC OPENING SENTENCES ===
+    opening_templates = [
+        f"A career spanning {experience} years within {sector} in {country} speaks volumes about a commitment to excellence and continuous adaptation.",
+        f"With {experience} years of dedicated experience in {country}'s demanding {sector} sector, a professional journey of significant growth and impact is clearly evident.",
+        f"Navigating the field of {sector} in {country} for {experience} years requires a unique blend of skill and determination—qualities that have clearly been cultivated throughout an impressive career.",
+        f"Building a career for {experience} years in {sector} within {country} is a testament to resilience and expertise."
+    ]
+    chosen_opening = random.choice(opening_templates)
+
+    # FINAL "YES" SUMMARY: Observational, rich, and dynamic
     summary = (
-        "<div style='font-size:24px;font-weight:bold;margin-top:30px;'>🧠 Personal Insights:</div><br>"
-        + f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>"
-        + f"For a professional in <strong>{country}</strong>'s <strong>{sector}</strong> sector with <strong>{experience} years</strong> of valuable experience, the journey is a rewarding one of balancing internal goals with the market's pulse. Demonstrating high effectiveness in communication (<strong>{metrics[0][1]}%</strong>) serves as a cornerstone of success, building bridges within the team and across the company."
+        "<div style='font-size:24px;font-weight:bold;margin-top:30px;'>🧠 An Expert Analysis of This Professional Profile:</div><br>"
+        + f"<p style='line-height:1.8; font-size:16px; margin-bottom:18px; text-align:justify;'>"
+        + f"{chosen_opening} Such a path typically cultivates a remarkable ability to connect with others, reflected by a Communication Efficiency score of {metrics[0][1]}%. This is less a learned skill and more a foundational trait upon which strong teams and successful collaborations are built, enabling confident navigation of both internal objectives and the market's pulse."
         + "</p>"
-        + f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>"
-        + f"In today's workplace, true leadership is measured by heart and adaptability. A readiness score benchmarked at <strong>{metrics[1][2]}%</strong> regionally points to a professional already on this path, one who provides the clarity and calm that others look to for guidance. This is a quality that builds trust and inspires action."
+        + f"<p style='line-height:1.8; font-size:16px; margin-bottom:18px; text-align:justify;'>"
+        + f"In today's business environment, true leadership is measured by influence and adaptability. A Leadership Readiness benchmarked at {metrics[1][2]}% regionally often indicates an intuitive grasp of these modern leadership pillars. This profile suggests a professional who provides the clarity and calm that teams gravitate towards in moments of pressure, fostering an environment of trust and inspiring collective action through respected guidance."
         + "</p>"
-        + f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>"
-        + f"Consistently getting things done (<strong>{metrics[2][1]}%</strong>) is more than just a metric—it's a powerful signal of great potential. For a <strong>{position}</strong>, this reflects the wisdom not just to work hard, but to work on what truly matters, a trait that never goes unnoticed."
+        + f"<p style='line-height:1.8; font-size:16px; margin-bottom:18px; text-align:justify;'>"
+        + f"The consistent ability to deliver, reflected in a Task Completion Reliability of {metrics[2][1]}%, is a clear indicator of profound impact and strategic wisdom. For an influential role like {position}, this demonstrates a rare discernment—the ability to identify which tasks matter most and execute them with excellence. This level of performance not only drives results but also signals readiness for even greater challenges."
         + "</p>"
-        + f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>"
-        + f"Choosing to focus on <strong>{focus}</strong> means tapping into a key growth area we're seeing across the region. Nurturing this skill is a powerful investment in resilience and influence. Continuing on this path is a clear sign of a promising future."
+        + f"<p style='line-height:1.8; font-size:16px; margin-bottom:18px; text-align:justify;'>"
+        + f"A focus on {focus} is a forward-thinking and insightful strategic choice. This aligns perfectly with major shifts occurring across the region, positioning this skill set as a cornerstone for future growth. Investing in this area points to a professional with a clear and promising trajectory, poised to make a lasting mark."
         + "</p>"
     )
 
-    # === UPDATED PROMPT: Asks for a more professional tone ===
     prompt = (
         f"Give 10 actionable, professional, and encouraging improvement ideas for a {position} from {country} "
-        f"with {experience} years in {sector}, facing '{challenge}' and focusing on '{focus}'. "
+        f"with {experience} years in {sector_raw}, facing '{challenge}' and focusing on '{focus}'. "
         f"Each idea should be a clear, constructive piece of advice. The tone should be empowering and respectful, not overly casual. Use emojis thoughtfully to add warmth, not to be unprofessional."
     )
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[{"role": "user", "content": prompt}],
-        temperature=0.75 # Slightly lowered for more focused output
+        temperature=0.75 
     )
     tips = response.choices[0].message.content.strip().split("\n")
     tips_html = "<div style='font-size:24px;font-weight:bold;margin-top:30px;'>💡 Creative Suggestions:</div><br>"
