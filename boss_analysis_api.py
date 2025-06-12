@@ -61,14 +61,13 @@ def boss_analyze():
     country = data.get("country", "").strip()
     age = compute_age(data)
 
-    # === REPHRASED SECTOR DESCRIPTIONS ===
     sector_map = {
         "Indoor – Admin / HR / Ops / Finance": "the essential field of administration and operations",
         "Indoor – Technical / Engineering / IT": "the innovative field of technology and engineering",
         "Outdoor – Sales / BD / Retail": "the fast-paced world of sales and client-facing roles",
         "Outdoor – Servicing / Logistics / Fieldwork": "the dynamic world of logistics and field operations"
     }
-    sector = sector_map.get(sector_raw, sector_raw) # Use the recrafted text, or the original if not found
+    sector = sector_map.get(sector_raw, sector_raw)
 
     raw_info = f"""
     <h3>📥 Submitted Form Data:</h3>
@@ -112,7 +111,6 @@ def boss_analyze():
             )
         bar_html += "<br>"
         
-    # === DYNAMIC OPENING SENTENCES ===
     opening_templates = [
         f"Building a career for {experience} years in {sector} within {country} is a testament to resilience and expertise.",
         f"With {experience} years of dedicated experience in {country}'s demanding {sector} sector, a professional journey of significant growth and impact is clearly evident.",
@@ -121,20 +119,20 @@ def boss_analyze():
     ]
     chosen_opening = random.choice(opening_templates)
 
-    # NEW "YES" SUMMARY using the dynamic opening and recrafted sector
+    # === TITLE FIX: Changed title to "Summary:" ===
     summary = (
-        "<div style='font-size:24px;font-weight:bold;margin-top:30px;'>🧠 An Affirming Look at Your Professional Journey:</div><br>"
+        "<div style='font-size:24px;font-weight:bold;margin-top:30px;'>🧠 Summary:</div><br>"
         + f"<p style='line-height:1.8; font-size:16px; margin-bottom:18px; text-align:justify;'>"
         + f"{chosen_opening} Such a path naturally hones a remarkable ability to connect with others, as reflected by a Communication Efficiency score of {metrics[0][1]}%. This isn't just a skill; it's the foundation upon which strong teams and successful collaborations are built, allowing for the confident navigation of both internal objectives and the ever-present pulse of the market."
         + "</p>"
         + f"<p style='line-height:1.8; font-size:16px; margin-bottom:18px; text-align:justify;'>"
-        + f"True leadership in today's world is less about authority and more about influence, empathy, and adaptability—qualities that appear to be developing strongly. A Leadership Readiness benchmarked at {metrics[1][2]}% regionally suggests an intuitive grasp of these modern leadership pillars. It points to a professional who provides the clarity and calm that teams gravitate towards in moments of pressure, fostering an environment of trust and inspiring collective action through respected guidance."
+        + f"In today's business environment, true leadership is measured by influence and adaptability. A Leadership Readiness benchmarked at {metrics[1][2]}% regionally often indicates an intuitive grasp of these modern leadership pillars. This profile suggests a professional who provides the clarity and calm that teams gravitate towards in moments of pressure, fostering an environment of trust and inspiring collective action through respected guidance."
         + "</p>"
         + f"<p style='line-height:1.8; font-size:16px; margin-bottom:18px; text-align:justify;'>"
-        + f"The consistent ability to deliver, reflected in a Task Completion Reliability of {metrics[2][1]}%, is far more than a measure of productivity; it is a clear indicator of profound impact and strategic wisdom. For an influential role like {position}, this demonstrates a rare discernment—the ability to identify which tasks matter most and execute them with excellence. This is the kind of performance that not only drives results but also signals readiness for even greater challenges and responsibilities."
+        + f"The consistent ability to deliver, reflected in a Task Completion Reliability of {metrics[2][1]}%, is a clear indicator of profound impact and strategic wisdom. For an influential role like {position}, this demonstrates a rare discernment—the ability to identify which tasks matter most and execute them with excellence. This level of performance not only drives results but also signals readiness for even greater challenges."
         + "</p>"
         + f"<p style='line-height:1.8; font-size:16px; margin-bottom:18px; text-align:justify;'>"
-        + f"Choosing to deepen the focus on {focus} is a forward-thinking and insightful move. This aligns perfectly with the strategic shifts occurring across the region, positioning this skill set not just as a current strength but as a cornerstone for future growth. Investing time here is an investment in long-term resilience, expanding influence, and the capacity to lead with vision. This is a clear and promising trajectory for a professional poised to make a lasting mark."
+        + f"A focus on {focus} is a forward-thinking and insightful strategic choice. This aligns perfectly with major shifts occurring across the region, positioning this skill set as a cornerstone for future growth. Investing in this area points to a professional with a clear and promising trajectory, poised to make a lasting mark."
         + "</p>"
     )
 
@@ -144,7 +142,7 @@ def boss_analyze():
         f"Each idea should be a clear, constructive piece of advice. The tone should be empowering and respectful, not overly casual. Use emojis thoughtfully to add warmth, not to be unprofessional."
     )
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4o",
         messages=[{"role": "user", "content": prompt}],
         temperature=0.75 
     )
