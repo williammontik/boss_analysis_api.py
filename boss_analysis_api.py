@@ -54,12 +54,21 @@ def boss_analyze():
     position = data.get("position", "").strip()
     department = data.get("department", "").strip()
     experience = data.get("experience", "").strip()
-    sector = data.get("sector", "").strip()
+    sector_raw = data.get("sector", "").strip()
     challenge = data.get("challenge", "").strip()
     focus = data.get("focus", "").strip()
     email = data.get("email", "").strip()
     country = data.get("country", "").strip()
     age = compute_age(data)
+
+    # === REPHRASED SECTOR DESCRIPTIONS ===
+    sector_map = {
+        "Indoor – Admin / HR / Ops / Finance": "the essential field of administration and operations",
+        "Indoor – Technical / Engineering / IT": "the innovative field of technology and engineering",
+        "Outdoor – Sales / BD / Retail": "the fast-paced world of sales and client-facing roles",
+        "Outdoor – Servicing / Logistics / Fieldwork": "the dynamic world of logistics and field operations"
+    }
+    sector = sector_map.get(sector_raw, sector_raw) # Use the recrafted text, or the original if not found
 
     raw_info = f"""
     <h3>📥 Submitted Form Data:</h3>
@@ -69,7 +78,7 @@ def boss_analyze():
       <li><strong>Position:</strong> {position}</li>
       <li><strong>Department:</strong> {department}</li>
       <li><strong>Experience:</strong> {experience} years</li>
-      <li><strong>Sector:</strong> {sector}</li>
+      <li><strong>Sector:</strong> {sector_raw}</li>
       <li><strong>Challenge:</strong> {challenge}</li>
       <li><strong>Focus:</strong> {focus}</li>
       <li><strong>Email:</strong> {email}</li>
@@ -93,38 +102,51 @@ def boss_analyze():
     bar_html = ""
     for title, seg, reg, glo, color in metrics:
         bar_html += f"<strong>{title}</strong><br>"
-        for v in (seg, reg, glo):
+        labels = ["Segment", "Regional", "Global"]
+        values = [seg, reg, glo]
+        for i, v in enumerate(values):
             bar_html += (
+                f"<span style='font-size:14px; width:80px; display:inline-block;'>{labels[i]}:</span>"
                 f"<span style='display:inline-block;width:{v}%;height:12px;"
-                f" background:{color}; margin-right:6px; border-radius:4px;'></span> {v}%<br>"
+                f" background:{color}; margin-right:6px; border-radius:4px; vertical-align:middle;'></span> {v}%<br>"
             )
         bar_html += "<br>"
+        
+    # === DYNAMIC OPENING SENTENCES ===
+    opening_templates = [
+        f"Building a career for {experience} years in {sector} within {country} is a testament to resilience and expertise.",
+        f"With {experience} years of dedicated experience in {country}'s demanding {sector} sector, a professional journey of significant growth and impact is clearly evident.",
+        f"Navigating the field of {sector} in {country} for {experience} years requires a unique blend of skill and determination—qualities that have clearly been cultivated throughout an impressive career.",
+        f"A career spanning {experience} years within {sector} in {country} speaks volumes about a commitment to excellence and continuous adaptation."
+    ]
+    chosen_opening = random.choice(opening_templates)
 
+    # NEW "YES" SUMMARY using the dynamic opening and recrafted sector
     summary = (
-        "<div style='font-size:24px;font-weight:bold;margin-top:30px;'>🧠 Summary:</div><br>"
-        + f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>"
-        + f"In {country}, professionals in the <strong>{sector}</strong> sector with <strong>{experience} years</strong> of experience often balance internal expectations with market evolution. Communication effectiveness, reflected in scores like <strong>{metrics[0][1]}%</strong>, is critical for managing not only teams but cross-functional collaboration across departments like <strong>{department or 'core functions'}</strong>."
+        "<div style='font-size:24px;font-weight:bold;margin-top:30px;'>🧠 An Affirming Look at Your Professional Journey:</div><br>"
+        + f"<p style='line-height:1.8; font-size:16px; margin-bottom:18px; text-align:justify;'>"
+        + f"{chosen_opening} Such a path naturally hones a remarkable ability to connect with others, as reflected by a Communication Efficiency score of {metrics[0][1]}%. This isn't just a skill; it's the foundation upon which strong teams and successful collaborations are built, allowing for the confident navigation of both internal objectives and the ever-present pulse of the market."
         + "</p>"
-        + f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>"
-        + "Leadership readiness in this sector is increasingly defined by emotional intelligence and adaptability. Benchmarks across similar roles suggest a strong regional average of <strong>{metrics[1][2]}%</strong>, revealing a shared pursuit of clarity, calm under pressure, and respectful authority."
+        + f"<p style='line-height:1.8; font-size:16px; margin-bottom:18px; text-align:justify;'>"
+        + f"True leadership in today's world is less about authority and more about influence, empathy, and adaptability—qualities that appear to be developing strongly. A Leadership Readiness benchmarked at {metrics[1][2]}% regionally suggests an intuitive grasp of these modern leadership pillars. It points to a professional who provides the clarity and calm that teams gravitate towards in moments of pressure, fostering an environment of trust and inspiring collective action through respected guidance."
         + "</p>"
-        + f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>"
-        + f"The ability to reliably complete tasks — measured at <strong>{metrics[2][1]}%</strong> — remains one of the most trusted signals of upward potential. For those in <strong>{position}</strong> roles, it reflects not just speed but discernment — choosing the right things to execute well."
+        + f"<p style='line-height:1.8; font-size:16px; margin-bottom:18px; text-align:justify;'>"
+        + f"The consistent ability to deliver, reflected in a Task Completion Reliability of {metrics[2][1]}%, is far more than a measure of productivity; it is a clear indicator of profound impact and strategic wisdom. For an influential role like {position}, this demonstrates a rare discernment—the ability to identify which tasks matter most and execute them with excellence. This is the kind of performance that not only drives results but also signals readiness for even greater challenges and responsibilities."
         + "</p>"
-        + f"<p style='line-height:1.7; font-size:16px; margin-bottom:16px; text-align:justify;'>"
-        + f"Your chosen focus — <strong>{focus}</strong> — echoes a broader shift we’ve seen across management profiles in Singapore, Malaysia, and Taiwan. Investing in this area may open new pathways of resilience, influence, and sustainable growth."
+        + f"<p style='line-height:1.8; font-size:16px; margin-bottom:18px; text-align:justify;'>"
+        + f"Choosing to deepen the focus on {focus} is a forward-thinking and insightful move. This aligns perfectly with the strategic shifts occurring across the region, positioning this skill set not just as a current strength but as a cornerstone for future growth. Investing time here is an investment in long-term resilience, expanding influence, and the capacity to lead with vision. This is a clear and promising trajectory for a professional poised to make a lasting mark."
         + "</p>"
     )
 
     prompt = (
-        f"Give 10 region-aware and emotionally intelligent improvement ideas for a {position} from {country} "
-        f"with {experience} years in {sector}, facing '{challenge}' and focusing on '{focus}'. "
-        f"Each idea should be on its own line, written warmly, with emojis. Avoid cold tone."
+        f"Give 10 actionable, professional, and encouraging improvement ideas for a {position} from {country} "
+        f"with {experience} years in {sector_raw}, facing '{challenge}' and focusing on '{focus}'. "
+        f"Each idea should be a clear, constructive piece of advice. The tone should be empowering and respectful, not overly casual. Use emojis thoughtfully to add warmth, not to be unprofessional."
     )
     response = client.chat.completions.create(
         model="gpt-3.5-turbo",
         messages=[{"role": "user", "content": prompt}],
-        temperature=0.85
+        temperature=0.75 
     )
     tips = response.choices[0].message.content.strip().split("\n")
     tips_html = "<div style='font-size:24px;font-weight:bold;margin-top:30px;'>💡 Creative Suggestions:</div><br>"
@@ -139,7 +161,7 @@ def boss_analyze():
         '2. Aggregated global business benchmarks from trusted OpenAI research and leadership trend datasets<br>'
         '<em>All data is processed through our AI models to identify statistically significant patterns while maintaining strict PDPA compliance.</em>'
         '</div>'
-        "<p style=\"background-color:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;\">"
+        '<p style="background-color:#e6f7ff; color:#00529B; padding:15px; border-left:4px solid #00529B; margin:20px 0;">'
         "<strong>PS:</strong> Your personalized report will arrive in your inbox within 24–48 hours. "
         "If you'd like to discuss it further, feel free to reach out — we're happy to arrange a 15-minute call at your convenience."
         "</p>"
@@ -151,10 +173,6 @@ def boss_analyze():
     send_email(email_output)
 
     return jsonify({
-        "metrics": [
-            {"title": t, "labels": ["Segment", "Regional", "Global"], "values": [s, r, g]}
-            for t, s, r, g, _ in metrics
-        ],
         "analysis": display_output
     })
 
